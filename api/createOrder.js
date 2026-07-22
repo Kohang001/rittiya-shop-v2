@@ -1,5 +1,6 @@
 // api/createOrder.js
 import { adminDb } from "./_firebaseAdmin.js";
+import { pushMessage } from "./_line.js";
 
 // ---------- Rate limiting แบบง่าย (in-memory) ----------
 // หมายเหตุ: เก็บใน memory ของ serverless function เฉยๆ ไม่ persist ข้าม cold start
@@ -101,6 +102,24 @@ export default async function handler(req, res) {
         });
 
         // Phase 7 จะเพิ่มการ push แจ้งเตือน LINE ตรงนี้
+
+        // ---------- แจ้งเตือนแม่ค้าผ่าน LINE (ถ้าผูกบัญชีไว้แล้ว) ----------
+        if (shop.lineUserId) {
+            const itemsText = validatedItems
+                .map((item) => `- ${item.name} x${item.qty}`)
+                .join("\n");
+            await pushMessage(shop.lineUserId, [
+                {
+                    type: "text",
+                    text:
+                        `📦 มีออเดอร์ใหม่!\n` +
+                        `ผู้สั่ง: ${customerName}\n` +
+                        `ติดต่อ: ${customerContact}\n\n` +
+                        `รายการ:\n${itemsText}\n\n` +
+                        `ยอดรวม: ${total.toLocaleString()} บาท`,
+                },
+            ]);
+        }
 
         return res.status(200).json({ orderId: orderRef.id, total });
     } catch (err) {

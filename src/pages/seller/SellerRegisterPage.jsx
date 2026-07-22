@@ -102,6 +102,13 @@ export default function SellerRegisterPage() {
                 category: data.category,
             });
 
+            // 2.5 แจ้งเตือน Admin ผ่าน LINE ว่ามีร้านใหม่ (ไม่บล็อกการสมัครถ้าแจ้งเตือนพลาด)
+            fetch("/api/notifyNewShop", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ shopId }),
+            }).catch((err) => console.error("แจ้งเตือน Admin ไม่สำเร็จ (ไม่กระทบการสมัคร):", err));
+
             // 3. เพิ่มสินค้าทุกชิ้นที่กรอกไว้ (status: pending ทุกชิ้น)
             for (const product of data.products) {
                 await addProduct(shopId, {
