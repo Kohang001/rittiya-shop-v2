@@ -1,8 +1,16 @@
-import { Link } from "react-router-dom";
+// src/components/layout/Navbar.jsx — อัปเดต: แสดงอีเมลที่ login อยู่ + ปุ่ม logout ที่กดได้จากทุกหน้า
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { logoutUser } from "../../firebase/auth";
 
 export default function Navbar() {
     const { user } = useAuth();
+    const navigate = useNavigate();
+
+    async function handleLogout() {
+        await logoutUser();
+        navigate("/");
+    }
 
     return (
         <nav
@@ -19,11 +27,15 @@ export default function Navbar() {
             <Link to="/" style={{ fontWeight: "bold", fontSize: 18, textDecoration: "none", color: "inherit" }}>
                 Rittiya Shop
             </Link>
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                 <Link to="/">ร้านค้า</Link>
                 <Link to="/feed">ประกาศ</Link>
                 {user ? (
-                    <Link to="/seller/dashboard">Dashboard ร้านฉัน</Link>
+                    <>
+                        <Link to="/seller/dashboard">Dashboard ร้านฉัน</Link>
+                        <span style={{ fontSize: 13, color: "#666" }}>{user.email}</span>
+                        <button onClick={handleLogout}>ออกจากระบบ</button>
+                    </>
                 ) : (
                     <>
                         <Link to="/seller/login">เข้าสู่ระบบ</Link>
