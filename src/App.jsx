@@ -1,7 +1,8 @@
-// src/App.jsx — เพิ่ม routes ของ Phase 5 (Seller Dashboard ทุกหน้าย่อย)
+// src/App.jsx — เพิ่ม Admin routes (Phase 8) — ไม่มีลิงก์จาก Navbar ตามที่ตั้งใจ
 import { Routes, Route } from "react-router-dom";
 import Navbar from "./components/layout/Navbar";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
+import AdminRoute from "./components/layout/AdminRoute";
 import HomePage from "./pages/public/HomePage";
 import FeedPage from "./pages/public/FeedPage";
 import ShopDetailPage from "./pages/public/ShopDetailPage";
@@ -13,6 +14,9 @@ import SellerProductsPage from "./pages/seller/SellerProductsPage";
 import SellerOrdersPage from "./pages/seller/SellerOrdersPage";
 import SellerLineLinkPage from "./pages/seller/SellerLineLinkPage";
 import SellerFeedPostPage from "./pages/seller/SellerFeedPostPage";
+import AdminLoginPage from "./pages/admin/AdminLoginPage";
+import AdminShopsPage from "./pages/admin/AdminShopsPage";
+import AdminShopDetailPage from "./pages/admin/AdminShopDetailPage";
 
 function App() {
     return (
@@ -26,7 +30,6 @@ function App() {
                 <Route path="/seller/login" element={<SellerLoginPage />} />
                 <Route path="/seller/register" element={<SellerRegisterPage />} />
                 <Route path="/seller/pending-approval" element={<PendingApprovalPage />} />
-
                 <Route
                     path="/seller/dashboard"
                     element={
@@ -65,6 +68,25 @@ function App() {
                         <ProtectedRoute>
                             <SellerFeedPostPage />
                         </ProtectedRoute>
+                    }
+                />
+
+                {/* ---------- Admin — ไม่มีลิงก์จาก Navbar ต้องพิมพ์ URL ตรงเท่านั้น ---------- */}
+                <Route path="/admin/login" element={<AdminLoginPage />} />
+                <Route
+                    path="/admin/shops"
+                    element={
+                        <AdminRoute>
+                            <AdminShopsPage />
+                        </AdminRoute>
+                    }
+                />
+                <Route
+                    path="/admin/shops/:shopId"
+                    element={
+                        <AdminRoute>
+                            <AdminShopDetailPage />
+                        </AdminRoute>
                     }
                 />
             </Routes>

@@ -1,11 +1,7 @@
 // api/_firebaseAdmin.js
-// หมายเหตุ: ตัด import ของ firebase-admin/auth ออก เพราะทำให้เกิด ERR_REQUIRE_ESM
-// crash บน Vercel (jose/jwks-rsa ที่ auth module ดึงเข้ามามีปัญหาเรื่อง ESM/CommonJS ชนกัน)
-// ตอนนี้ยังไม่มีฟังก์ชันไหนใช้ adminAuth เลย จะกลับมาเพิ่มใหม่ตอน Phase 8
-// (ตั้ง custom claim) ด้วยวิธีที่ปลอดภัยกว่านี้
-
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 
 function getAdminApp() {
     if (getApps().length) return getApps()[0];
@@ -21,3 +17,26 @@ function getAdminApp() {
 
 const app = getAdminApp();
 export const adminDb = getFirestore(app);
+export const adminAuth = getAuth(app);
+
+/**
+ * เช็คว่า request นี้มาจาก admin จริงไหม โดยตรวจ ID token จาก header Authorization
+ * ใช้ในทุก endpoint ที่ต้องจำกัดสิทธิ์เฉพาะ admin (approveShop, approveProduct, setAdminClaim)
+ * @returns {Promise<{uid: string} | null>} คืนค่า uid ถ้าเป็น admin จริง, null ถ้าไม่ใช่
+ */
+export async function verifyAdminRequest(req) {
+    const authHeader = req.headers.authorization || "";
+    const idToken = authHeader.replace("Bearer ", "");
+    if (!idToken) return null;
+
+    try {
+        const decoded = await adminAuth.verifyIdToken(idToken);
+        if (decoded.admin === true) {
+            return { uid: decoded.uid };
+        }
+        return null;
+    } catch (err) {
+        console.error("verifyAdminRequest error:", err);
+        return null;
+    }
+}
