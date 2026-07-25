@@ -1,4 +1,4 @@
-// src/pages/seller/SellerProductsPage.jsx
+// src/pages/seller/SellerProductsPage.jsx — อัปเดต Phase 9: แก้สินค้าที่อนุมัติแล้วต้องรออนุมัติใหม่
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -24,7 +24,7 @@ export default function SellerProductsPage() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [form, setForm] = useState(EMPTY_FORM);
-    const [editingId, setEditingId] = useState(null); // productId ที่กำลังแก้ (null = กำลังเพิ่มใหม่)
+    const [editingId, setEditingId] = useState(null);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
@@ -65,15 +65,20 @@ export default function SellerProductsPage() {
         setSaving(true);
         try {
             if (editingId) {
-                // แก้ไขสินค้าเดิม — ไม่รีเซ็ตสถานะเป็น pending เพราะเป็นแค่การแก้รายละเอียด/ราคา
-                await updateProduct(shop.id, editingId, {
+                const currentProduct = products.find((p) => p.id === editingId);
+                const updates = {
                     name: form.name,
                     desc: form.desc,
                     price: parseFloat(form.price) || 0,
                     imageUrl: form.imageUrl,
-                });
+                };
+                // ถ้าสินค้าชิ้นนี้เคยอนุมัติแล้ว การแก้ไขต้องรออนุมัติใหม่เสมอ
+                // (ปิดช่องแอบเปลี่ยนเนื้อหา/รูปหลังผ่านการตรวจแล้ว)
+                if (currentProduct?.status === "approved") {
+                    updates.status = "pending";
+                }
+                await updateProduct(shop.id, editingId, updates);
             } else {
-                // เพิ่มสินค้าใหม่ — สถานะ pending เสมอ (บังคับโดย Security Rules อยู่แล้ว)
                 await addProduct(shop.id, {
                     name: form.name,
                     desc: form.desc,
@@ -100,6 +105,8 @@ export default function SellerProductsPage() {
     if (loading) return <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>;
     if (!shop) return <p style={{ textAlign: "center", marginTop: 40 }}>ไม่พบร้านค้า</p>;
 
+    const editingProduct = editingId ? products.find((p) => p.id === editingId) : null;
+
     return (
         <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 16px" }}>
             <h2>จัดการสินค้า — {shop.name}</h2>
@@ -109,6 +116,12 @@ export default function SellerProductsPage() {
                 style={{ border: "1px solid #ddd", borderRadius: 10, padding: 16, marginBottom: 24 }}
             >
                 <h4>{editingId ? "แก้ไขสินค้า" : "เพิ่มสินค้าใหม่"}</h4>
+
+                {editingProduct?.status === "approved" && (
+                    <p style={{ fontSize: 12, color: "#a60", background: "#ffedd5", padding: 8, borderRadius: 6 }}>
+                        ⚠️ สินค้านี้อนุมัติแล้ว หากบันทึกการแก้ไข จะต้องรอ Admin ตรวจสอบใหม่อีกครั้ง
+                    </p>
+                )}
 
                 <label>ชื่อสินค้า</label>
                 <input
@@ -129,6 +142,7 @@ export default function SellerProductsPage() {
                 <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={form.price}
                     onChange={(e) => setForm({ ...form, price: e.target.value })}
                     style={{ display: "block", width: "100%", marginBottom: 8 }}
