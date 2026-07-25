@@ -1,4 +1,4 @@
-// api/notifyNewShop.js
+// api/notifyNewProduct.js
 import { adminDb } from "./_firebaseAdmin.js";
 import { pushMessage } from "./_line.js";
 
@@ -8,8 +8,10 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { shopId } = req.body;
-        if (!shopId) return res.status(400).json({ error: "missing shopId" });
+        const { shopId, productName } = req.body;
+        if (!shopId || !productName) {
+            return res.status(400).json({ error: "missing shopId or productName" });
+        }
 
         const shopSnap = await adminDb.collection("shops").doc(shopId).get();
         if (!shopSnap.exists) return res.status(404).json({ error: "shop not found" });
@@ -23,18 +25,18 @@ export default async function handler(req, res) {
                 {
                     type: "text",
                     text:
-                        `🆕 มีร้านค้าใหม่สมัครเข้ามา!\n` +
-                        `ชื่อร้าน: ${shop.name}\n` +
-                        `เบอร์ติดต่อ: ${shop.phone}\n\n` +
-                        `เข้าไปตรวจสอบและอนุมัติได้ที่หน้า Admin`,
+                        `🆕 มีสิ่งที่รอให้ตรวจสอบ!\n` +
+                        `ร้าน: ${shop.name}\n` +
+                        `สินค้า: ${productName}\n\n` +
+                        `เข้าไปตรวจสอบและอนุมัติได้ที่หน้า \n` +
+                        `https://rittiya-shop-v2.vercel.app/admin/shops/`,
                 },
             ]);
         }
 
-        // ไม่ถือเป็น error ร้ายแรงถ้า admin ยังไม่ผูก LINE ไว้ — แค่ไม่มีใครได้รับแจ้งเตือนเฉยๆ
         return res.status(200).json({ notified: Boolean(adminLineUserId) });
     } catch (err) {
-        console.error("notifyNewShop error:", err);
+        console.error("notifyNewProduct error:", err);
         return res.status(500).json({ error: "internal error" });
     }
 }
