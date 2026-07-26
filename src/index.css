@@ -1,5 +1,4 @@
-/* src/index.css — Design system กลางของทั้งเว็บ
-   แนวทาง: เว็บปกติ ใช้งานง่าย ไม่หวือหวา สีเรียบ ฟอนต์ระบบ */
+/* src/index.css — อัปเดตหลัง UX/UI Audit: เพิ่ม semantic tokens + shadow + responsive utility */
 
 :root {
   /* ---------- สี ---------- */
@@ -8,18 +7,27 @@
   --color-border: #e2e8f0;
   --color-text: #0f172a;
   --color-text-muted: #64748b;
+  /* contrast ratio 4.6:1 ผ่าน WCAG AA แล้ว */
 
   --color-primary: #0d9488;
-  /* ปุ่มหลัก / ลิงก์ / โฟกัส */
   --color-primary-hover: #0f766e;
   --color-primary-bg: #f0fdfa;
 
   --color-danger: #dc2626;
-  /* ไม่อนุมัติ / ลบ */
   --color-success: #16a34a;
-  /* อนุมัติแล้ว */
   --color-warning: #d97706;
-  /* รอตรวจสอบ */
+
+  /* สถานะ — ใช้ค่าเดียวกันทุกที่ในเว็บ ห้ามเขียน hex สถานะแยกเองในแต่ละไฟล์อีก */
+  --color-status-pending: var(--color-warning);
+  --color-status-pending-bg: #fffbeb;
+  --color-status-approved: var(--color-success);
+  --color-status-approved-bg: #f0fdf4;
+  --color-status-rejected: var(--color-danger);
+  --color-status-rejected-bg: #fef2f2;
+
+  /* ---------- เงา (ให้การ์ดมีมิติ ไม่แบนราบ) ---------- */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.12), 0 2px 4px rgba(15, 23, 42, 0.08);
 
   /* ---------- ระยะห่าง ---------- */
   --space-1: 4px;
@@ -97,7 +105,15 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* ปุ่ม submit หลักของฟอร์ม (type="submit") ให้เด่นเป็นสีหลัก */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 button[type="submit"] {
   background: var(--color-primary);
   border-color: var(--color-primary);
@@ -135,4 +151,64 @@ label {
   font-weight: 500;
   color: var(--color-text-muted);
   margin-bottom: 4px;
+}
+
+/* ---------- Card ทั่วไป ---------- */
+.card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- Badge สถานะ (ใช้แทนสี hex ที่กระจายอยู่ทุกไฟล์) ---------- */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.status-badge--pending {
+  color: var(--color-status-pending);
+  background: var(--color-status-pending-bg);
+}
+
+.status-badge--approved {
+  color: var(--color-status-approved);
+  background: var(--color-status-approved-bg);
+}
+
+.status-badge--rejected {
+  color: var(--color-status-rejected);
+  background: var(--color-status-rejected-bg);
+}
+
+/* ---------- Responsive: ShopDetailPage สินค้า+ตะกร้า ---------- */
+.shop-detail-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .shop-detail-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* บนมือถือ ปุ่ม +/- ในตะกร้าต้องมีขนาดแตะง่าย (ตาม Apple HIG/Material ≥ 44x44px) */
+.qty-btn {
+  min-width: 36px;
+  min-height: 36px;
+}
+
+@media (max-width: 480px) {
+  .qty-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }

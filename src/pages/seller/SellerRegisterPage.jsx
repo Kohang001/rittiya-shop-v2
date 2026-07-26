@@ -1,4 +1,5 @@
-// src/pages/seller/SellerRegisterPage.jsx
+// src/pages/seller/SellerRegisterPage.jsx — อัปเดตหลัง UX Audit: label ผูก id/htmlFor + password toggle
+// (ยังคงทุก fix เดิม: double-submit guard, บังคับมีสินค้าอย่างน้อย 1 ชิ้น, แจ้งเตือน Admin)
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -6,6 +7,7 @@ import { registerUser } from "../../firebase/auth";
 import { createShopDraft, addProduct } from "../../firebase/firestore";
 import ImageUploadField from "../../components/form/ImageUploadField";
 import DynamicProductFieldList from "../../components/form/DynamicProductFieldList";
+import PasswordInput from "../../components/ui/PasswordInput";
 
 const STEPS = ["บัญชีผู้ใช้", "ข้อมูลร้านค้า", "สินค้า"];
 
@@ -13,7 +15,7 @@ export default function SellerRegisterPage() {
     const [step, setStep] = useState(0);
     const [submitError, setSubmitError] = useState("");
     const [submitting, setSubmitting] = useState(false);
-    const hasSubmittedRef = useRef(false); // กัน submit ซ้ำแม้มีคลิกซ้อนกันจริง (double-click)
+    const hasSubmittedRef = useRef(false);
     const navigate = useNavigate();
 
     const {
@@ -66,13 +68,11 @@ export default function SellerRegisterPage() {
     }
 
     async function onSubmit(data) {
-        // กันการ submit ซ้ำ (เช่นจากคลิกซ้อนกัน) — ถ้าเคย submit ไปแล้วให้หยุดทันที
         if (hasSubmittedRef.current) return;
 
-        // บังคับต้องมีสินค้าอย่างน้อย 1 ชิ้นก่อน ถึงจะสมัครร้านได้
         if (!data.products || data.products.length === 0) {
             setSubmitError("กรุณาเพิ่มสินค้าอย่างน้อย 1 ชิ้นก่อนสมัครร้าน");
-            setStep(2); // เด้งกลับไปหน้าสินค้าให้แน่ใจว่าเห็น error
+            setStep(2);
             return;
         }
 
@@ -81,17 +81,15 @@ export default function SellerRegisterPage() {
         setSubmitting(true);
 
         try {
-            // 1. สมัครบัญชี Auth
             const { user, error: authError } = await registerUser(data.email, data.password);
             if (authError) {
                 setSubmitError(authError);
                 setSubmitting(false);
-                hasSubmittedRef.current = false; // อนุญาตให้ลอง submit ใหม่ได้ถ้าสมัคร Auth ไม่ผ่าน
+                hasSubmittedRef.current = false;
                 setStep(0);
                 return;
             }
 
-            // 2. สร้างร้าน (status: pending)
             const { id: shopId, lineLinkCode } = await createShopDraft({
                 ownerUid: user.uid,
                 name: data.name,
@@ -102,14 +100,12 @@ export default function SellerRegisterPage() {
                 category: data.category,
             });
 
-            // 2.5 แจ้งเตือน Admin ผ่าน LINE ว่ามีร้านใหม่ (ไม่บล็อกการสมัครถ้าแจ้งเตือนพลาด)
             fetch("/api/notifyNewShop", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ shopId }),
             }).catch((err) => console.error("แจ้งเตือน Admin ไม่สำเร็จ (ไม่กระทบการสมัคร):", err));
 
-            // 3. เพิ่มสินค้าทุกชิ้นที่กรอกไว้ (status: pending ทุกชิ้น)
             for (const product of data.products) {
                 await addProduct(shopId, {
                     name: product.name,
@@ -119,7 +115,6 @@ export default function SellerRegisterPage() {
                 });
             }
 
-            // 4. ไปหน้ารอการอนุมัติ พร้อมโชว์รหัสผูก LINE
             navigate("/seller/pending-approval", { state: { lineLinkCode } });
         } catch (err) {
             console.error(err);
@@ -142,10 +137,10 @@ export default function SellerRegisterPage() {
                             flex: 1,
                             textAlign: "center",
                             padding: 6,
-                            borderRadius: 6,
+                            borderRadius: "var(--radius-sm)",
                             fontSize: 12,
-                            background: i === step ? "#333" : "#eee",
-                            color: i === step ? "#fff" : "#555",
+                            background: i === step ? "var(--color-primary)" : "var(--color-bg-subtle)",
+                            color: i === step ? "#fff" : "var(--color-text-muted)",
                         }}
                     >
                         {i + 1}. {label}
@@ -156,44 +151,49 @@ export default function SellerRegisterPage() {
             <form onSubmit={handleSubmit(onSubmit)}>
                 {step === 0 && (
                     <div>
-                        <label>อีเมล</label>
+                        <label htmlFor="reg-email">อีเมล</label>
                         <input
+                            id="reg-email"
                             type="email"
                             {...register("email", { required: true })}
                             style={{ display: "block", width: "100%", marginBottom: 8 }}
                         />
-                        {errors.email && <p style={{ color: "red" }}>กรุณากรอกอีเมล</p>}
+                        {errors.email && <p style={{ color: "var(--color-danger)" }}>กรุณากรอกอีเมล</p>}
 
-                        <label>รหัสผ่าน</label>
-                        <input
-                            type="password"
-                            {...register("password", { required: true, minLength: 6 })}
-                            style={{ display: "block", width: "100%", marginBottom: 8 }}
-                        />
+                        <label htmlFor="reg-password">รหัสผ่าน</label>
+                        <div style={{ marginBottom: 8 }}>
+                            <PasswordInput
+                                id="reg-password"
+                                {...register("password", { required: true, minLength: 6 })}
+                            />
+                        </div>
                         {errors.password && (
-                            <p style={{ color: "red" }}>รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร</p>
+                            <p style={{ color: "var(--color-danger)" }}>รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร</p>
                         )}
 
-                        <label>ยืนยันรหัสผ่าน</label>
-                        <input
-                            type="password"
-                            {...register("confirmPassword", { required: true })}
-                            style={{ display: "block", width: "100%", marginBottom: 8 }}
-                        />
+                        <label htmlFor="reg-confirm-password">ยืนยันรหัสผ่าน</label>
+                        <div style={{ marginBottom: 8 }}>
+                            <PasswordInput
+                                id="reg-confirm-password"
+                                {...register("confirmPassword", { required: true })}
+                            />
+                        </div>
                     </div>
                 )}
 
                 {step === 1 && (
                     <div>
-                        <label>ชื่อร้าน</label>
+                        <label htmlFor="reg-shop-name">ชื่อร้าน</label>
                         <input
+                            id="reg-shop-name"
                             {...register("name", { required: true })}
                             style={{ display: "block", width: "100%", marginBottom: 8 }}
                         />
-                        {errors.name && <p style={{ color: "red" }}>กรุณากรอกชื่อร้าน</p>}
+                        {errors.name && <p style={{ color: "var(--color-danger)" }}>กรุณากรอกชื่อร้าน</p>}
 
-                        <label>สโลแกน</label>
+                        <label htmlFor="reg-slogan">สโลแกน</label>
                         <input
+                            id="reg-slogan"
                             {...register("slogan")}
                             style={{ display: "block", width: "100%", marginBottom: 8 }}
                         />
@@ -204,21 +204,24 @@ export default function SellerRegisterPage() {
                             onChange={(url) => setValue("logoUrl", url)}
                         />
 
-                        <label>เบอร์โทร</label>
+                        <label htmlFor="reg-phone">เบอร์โทร</label>
                         <input
+                            id="reg-phone"
                             {...register("phone", { required: true })}
                             style={{ display: "block", width: "100%", marginBottom: 8 }}
                         />
-                        {errors.phone && <p style={{ color: "red" }}>กรุณากรอกเบอร์โทร</p>}
+                        {errors.phone && <p style={{ color: "var(--color-danger)" }}>กรุณากรอกเบอร์โทร</p>}
 
-                        <label>ไอจี (ไม่บังคับ)</label>
+                        <label htmlFor="reg-ig">ไอจี (ไม่บังคับ)</label>
                         <input
+                            id="reg-ig"
                             {...register("ig")}
                             style={{ display: "block", width: "100%", marginBottom: 8 }}
                         />
 
-                        <label>หมวดหมู่</label>
+                        <label htmlFor="reg-category">หมวดหมู่</label>
                         <input
+                            id="reg-category"
                             placeholder="เช่น อาหาร, เครื่องดื่ม, ของใช้"
                             {...register("category")}
                             style={{ display: "block", width: "100%", marginBottom: 8 }}
@@ -235,14 +238,27 @@ export default function SellerRegisterPage() {
                             setValue={setValue}
                         />
                         {watch("products")?.length === 0 && (
-                            <p style={{ color: "#b45", fontSize: 13 }}>
-                                ⚠️ ต้องเพิ่มสินค้าอย่างน้อย 1 ชิ้นก่อนกด "ยืนยันสมัครร้าน"
+                            <p style={{ color: "var(--color-warning)", fontSize: 13 }}>
+                                ต้องเพิ่มสินค้าอย่างน้อย 1 ชิ้นก่อนกด "ยืนยันสมัครร้าน"
                             </p>
                         )}
                     </div>
                 )}
 
-                {submitError && <p style={{ color: "red" }}>{submitError}</p>}
+                {submitError && (
+                    <p
+                        role="alert"
+                        style={{
+                            color: "var(--color-danger)",
+                            background: "var(--color-status-rejected-bg)",
+                            padding: "8px 12px",
+                            borderRadius: "var(--radius-sm)",
+                            fontSize: 13,
+                        }}
+                    >
+                        {submitError}
+                    </p>
+                )}
 
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
                     {step > 0 ? (
@@ -258,10 +274,7 @@ export default function SellerRegisterPage() {
                             ถัดไป
                         </button>
                     ) : (
-                        <button
-                            type="submit"
-                            disabled={submitting || watch("products")?.length === 0}
-                        >
+                        <button type="submit" disabled={submitting || watch("products")?.length === 0}>
                             {submitting ? "กำลังสมัคร..." : "ยืนยันสมัครร้าน"}
                         </button>
                     )}

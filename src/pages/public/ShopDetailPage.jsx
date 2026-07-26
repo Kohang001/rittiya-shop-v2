@@ -1,10 +1,11 @@
-// src/pages/public/ShopDetailPage.jsx — อัปเดต: ใช้ Icon component แทนอิโมจิ
+// src/pages/public/ShopDetailPage.jsx — อัปเดตหลัง UX Audit: ยกเลิก prompt()/alert(), responsive layout
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getShopById, getApprovedProducts } from "../../firebase/firestore";
 import { useCart } from "../../context/CartContext";
 import ProductCard from "../../components/shop/ProductCard";
 import CartSummary from "../../components/shop/CartSummary";
+import CheckoutModal from "../../components/shop/CheckoutModal";
 import Icon from "../../components/ui/Icon";
 
 export default function ShopDetailPage() {
@@ -12,7 +13,7 @@ export default function ShopDetailPage() {
     const [shop, setShop] = useState(null);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [placingOrder, setPlacingOrder] = useState(false);
+    const [showCheckout, setShowCheckout] = useState(false);
     const { addItem, setQty, getCartItems, getTotal, clearCart } = useCart();
 
     useEffect(() => {
@@ -31,39 +32,25 @@ export default function ShopDetailPage() {
     const cartItems = getCartItems(shopId);
     const total = getTotal(shopId);
 
-    async function handleCheckout() {
-        const customerName = prompt("ชื่อผู้สั่งซื้อ:");
-        if (!customerName) return;
-        const customerContact = prompt("เบอร์โทรหรือไอจีติดต่อกลับ:");
-        if (!customerContact) return;
+    async function handleConfirmOrder({ customerName, customerContact }) {
+        const response = await fetch("/api/createOrder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                shopId,
+                items: cartItems.map(({ product, qty }) => ({ productId: product.id, qty })),
+                customerName,
+                customerContact,
+            }),
+        });
 
-        setPlacingOrder(true);
-        try {
-            const response = await fetch("/api/createOrder", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    shopId,
-                    items: cartItems.map(({ product, qty }) => ({ productId: product.id, qty })),
-                    customerName,
-                    customerContact,
-                }),
-            });
-
-            const data = await response.json();
-            if (!response.ok) {
-                alert(data.error || "สั่งซื้อไม่สำเร็จ");
-                return;
-            }
-
-            alert(`สั่งซื้อสำเร็จ! ยอดรวม ${data.total.toLocaleString()} บาท`);
-            clearCart(shopId);
-        } catch (err) {
-            console.error(err);
-            alert("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
-        } finally {
-            setPlacingOrder(false);
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "สั่งซื้อไม่สำเร็จ");
         }
+
+        clearCart(shopId);
+        return data; // { orderId, total } — CheckoutModal ใช้แสดงหน้าสำเร็จ
     }
 
     return (
@@ -90,7 +77,7 @@ export default function ShopDetailPage() {
                 </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
+            <div className="shop-detail-layout">
                 <div
                     style={{
                         display: "grid",
@@ -113,11 +100,19 @@ export default function ShopDetailPage() {
                         items={cartItems}
                         total={total}
                         onQtyChange={(productId, qty) => setQty(shopId, productId, qty)}
-                        onCheckout={handleCheckout}
-                        checkoutDisabled={placingOrder}
+                        onCheckout={() => setShowCheckout(true)}
                     />
                 </div>
             </div>
+
+            {showCheckout && (
+                <CheckoutModal
+                    items={cartItems}
+                    total={total}
+                    onConfirm={handleConfirmOrder}
+                    onClose={() => setShowCheckout(false)}
+                />
+            )}
         </div>
     );
 }

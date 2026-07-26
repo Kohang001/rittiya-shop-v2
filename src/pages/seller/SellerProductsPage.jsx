@@ -11,9 +11,9 @@ import {
 import ImageUploadField from "../../components/form/ImageUploadField";
 
 const STATUS_LABEL = {
-    pending: { text: "รอตรวจสอบ", color: "#a60" },
-    approved: { text: "อนุมัติแล้ว", color: "#080" },
-    rejected: { text: "ไม่อนุมัติ", color: "#c00" },
+    pending: { text: "รอตรวจสอบ", color: "var(--color-status-pending)" },
+    approved: { text: "อนุมัติแล้ว", color: "var(--color-status-approved)" },
+    rejected: { text: "ไม่อนุมัติ", color: "var(--color-status-rejected)" },
 };
 
 const EMPTY_FORM = { name: "", desc: "", price: "", imageUrl: "" };
@@ -129,7 +129,7 @@ export default function SellerProductsPage() {
                 <h4>{editingId ? "แก้ไขสินค้า" : "เพิ่มสินค้าใหม่"}</h4>
 
                 {editingProduct?.status === "approved" && (
-                    <p style={{ fontSize: 12, color: "#a60", background: "#ffedd5", padding: 8, borderRadius: 6 }}>
+                    <p style={{ fontSize: 12, color: "var(--color-status-pending)", background: "var(--color-status-pending-bg)", padding: 8, borderRadius: 6 }}>
                         ⚠️ สินค้านี้อนุมัติแล้ว หากบันทึกการแก้ไข จะต้องรอ Admin ตรวจสอบใหม่อีกครั้ง
                     </p>
                 )}
@@ -178,7 +178,7 @@ export default function SellerProductsPage() {
                 </div>
 
                 {!editingId && (
-                    <p style={{ fontSize: 12, color: "#888", marginTop: 6 }}>
+                    <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 6 }}>
                         สินค้าที่เพิ่มใหม่จะมีสถานะ "รอตรวจสอบ" จนกว่า Admin จะอนุมัติ
                     </p>
                 )}
@@ -186,11 +186,11 @@ export default function SellerProductsPage() {
 
             <h4>สินค้าทั้งหมด ({products.length})</h4>
             {products.length === 0 ? (
-                <p style={{ color: "#888" }}>ยังไม่มีสินค้า</p>
+                <p style={{ color: "var(--color-text-muted)" }}>ยังไม่มีสินค้า</p>
             ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {products.map((product) => {
-                        const statusInfo = STATUS_LABEL[product.status] || { text: product.status, color: "#666" };
+                        const statusInfo = STATUS_LABEL[product.status] || { text: product.status, color: "var(--color-text-muted)" };
                         return (
                             <div
                                 key={product.id}
@@ -213,7 +213,7 @@ export default function SellerProductsPage() {
                                     )}
                                     <div>
                                         <p style={{ margin: 0 }}>{product.name}</p>
-                                        <p style={{ margin: 0, fontSize: 13, color: "#666" }}>
+                                        <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-muted)" }}>
                                             {product.price?.toLocaleString()} บาท ·{" "}
                                             <span style={{ color: statusInfo.color }}>{statusInfo.text}</span>
                                         </p>
