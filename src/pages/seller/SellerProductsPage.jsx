@@ -58,6 +58,14 @@ export default function SellerProductsPage() {
         setForm(EMPTY_FORM);
     }
 
+    function notifyAdminNewProduct(productId) {
+        fetch("/api/notifyNewProduct", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ shopId: shop.id, productId }),
+        }).catch((err) => console.error("แจ้งเตือน Admin ไม่สำเร็จ (ไม่กระทบการบันทึก):", err));
+    }
+
     async function handleSave(e) {
         e.preventDefault();
         if (!form.name || !form.price) return;
@@ -72,19 +80,22 @@ export default function SellerProductsPage() {
                     price: parseFloat(form.price) || 0,
                     imageUrl: form.imageUrl,
                 };
-                // ถ้าสินค้าชิ้นนี้เคยอนุมัติแล้ว การแก้ไขต้องรออนุมัติใหม่เสมอ
-                // (ปิดช่องแอบเปลี่ยนเนื้อหา/รูปหลังผ่านการตรวจแล้ว)
-                if (currentProduct?.status === "approved") {
+                const willBecomePending = currentProduct?.status === "approved";
+                if (willBecomePending) {
                     updates.status = "pending";
                 }
                 await updateProduct(shop.id, editingId, updates);
+                if (willBecomePending) {
+                    notifyAdminNewProduct(editingId);
+                }
             } else {
-                await addProduct(shop.id, {
+                const newProductId = await addProduct(shop.id, {
                     name: form.name,
                     desc: form.desc,
                     price: parseFloat(form.price) || 0,
                     imageUrl: form.imageUrl,
                 });
+                notifyAdminNewProduct(newProductId);
             }
             cancelEdit();
             await load();
