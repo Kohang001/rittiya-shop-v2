@@ -41,24 +41,47 @@ export default function SellerLineLinkPage() {
                     </p>
                 </div>
             ) : (
-                <div
-                    style={{
-                        border: "2px dashed #333",
-                        borderRadius: 12,
-                        padding: 20,
-                    }}
-                >
-                    <p style={{ marginBottom: 8 }}>
-                        ยังไม่ได้เชื่อมต่อ LINE — เพิ่มเพื่อน LINE Official Account ของเรา
-                        แล้วพิมพ์รหัสนี้ส่งไปในแชท:
-                    </p>
-                    <p style={{ fontSize: 32, fontWeight: "bold", letterSpacing: 4 }}>
-                        {shop.lineLinkCode}
-                    </p>
-                    <p style={{ fontSize: 12, color: "#888" }}>
-                        (ระบบเชื่อมต่ออัตโนมัติจะทำงานจริงใน Phase 7)
-                    </p>
-                </div>
+                    <div
+                        className="card"
+                        style={{
+                            padding: 24,
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                        }}
+                    >
+                        <h3 style={{ fontSize: 16, marginBottom: 12 }}>สแกน QR Code เพื่อเชื่อมต่อ LINE</h3>
+                        <img
+                            src="/line-qr.png"
+                            alt="LINE Official Account QR Code"
+                            style={{
+                                width: 200,
+                                height: 200,
+                                objectFit: "contain",
+                                borderRadius: "var(--radius-md)",
+                                border: "1px solid var(--color-border)",
+                                padding: 8,
+                                background: "#fff",
+                                marginBottom: 16,
+                            }}
+                        />
+                        <p style={{ fontSize: 14, color: "var(--color-text-muted)", margin: "0 0 12px 0" }}>
+                            เพิ่มเพื่อน LINE Official Account แล้วพิมพ์รหัสนี้ส่งไปในแชทเพื่อเชื่อมต่อ:
+                        </p>
+                        <div
+                            style={{
+                                background: "var(--color-bg-subtle)",
+                                border: "1px dashed var(--color-primary)",
+                                borderRadius: "var(--radius-sm)",
+                                padding: "10px 20px",
+                                display: "inline-block",
+                            }}
+                        >
+                            <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: 4, color: "var(--color-primary)" }}>
+                                {shop.lineLinkCode}
+                            </span>
+                        </div>
+                    </div>
             )}
         </div>
     );
