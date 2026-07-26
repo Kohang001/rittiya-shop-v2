@@ -1,10 +1,11 @@
-// src/pages/public/ShopDetailPage.jsx — อัปเดต Phase 6: เรียก /api/createOrder จริง
+// src/pages/public/ShopDetailPage.jsx — อัปเดต: ใช้ Icon component แทนอิโมจิ
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getShopById, getApprovedProducts } from "../../firebase/firestore";
 import { useCart } from "../../context/CartContext";
 import ProductCard from "../../components/shop/ProductCard";
 import CartSummary from "../../components/shop/CartSummary";
+import Icon from "../../components/ui/Icon";
 
 export default function ShopDetailPage() {
     const { shopId } = useParams();
@@ -43,17 +44,13 @@ export default function ShopDetailPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     shopId,
-                    items: cartItems.map(({ product, qty }) => ({
-                        productId: product.id,
-                        qty,
-                    })),
+                    items: cartItems.map(({ product, qty }) => ({ productId: product.id, qty })),
                     customerName,
                     customerContact,
                 }),
             });
 
             const data = await response.json();
-
             if (!response.ok) {
                 alert(data.error || "สั่งซื้อไม่สำเร็จ");
                 return;
@@ -81,9 +78,14 @@ export default function ShopDetailPage() {
                 )}
                 <div>
                     <h1 style={{ margin: 0 }}>{shop.name}</h1>
-                    <p style={{ margin: 0, color: "#666" }}>{shop.slogan}</p>
-                    <p style={{ margin: 0, fontSize: 13 }}>
-                        📞 {shop.phone} {shop.ig && `· IG: @${shop.ig}`}
+                    <p style={{ margin: 0, color: "var(--color-text-muted)" }}>{shop.slogan}</p>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+                        <Icon name="phone" size={14} /> {shop.phone}
+                        {shop.ig && (
+                            <>
+                                <Icon name="instagram" size={14} style={{ marginLeft: 10 }} /> @{shop.ig}
+                            </>
+                        )}
                     </p>
                 </div>
             </div>
@@ -98,14 +100,10 @@ export default function ShopDetailPage() {
                     }}
                 >
                     {products.length === 0 ? (
-                        <p style={{ color: "#888" }}>ร้านนี้ยังไม่มีสินค้า</p>
+                        <p style={{ color: "var(--color-text-muted)" }}>ร้านนี้ยังไม่มีสินค้า</p>
                     ) : (
                         products.map((product) => (
-                            <ProductCard
-                                key={product.id}
-                                product={product}
-                                onAdd={(p) => addItem(shopId, p)}
-                            />
+                            <ProductCard key={product.id} product={product} onAdd={(p) => addItem(shopId, p)} />
                         ))
                     )}
                 </div>

@@ -1,15 +1,15 @@
-// src/pages/seller/SellerDashboardPage.jsx
+// src/pages/seller/SellerDashboardPage.jsx — อัปเดต: ใช้ Icon component แทนอิโมจิ
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { logoutUser } from "../../firebase/auth";
-import { useNavigate } from "react-router-dom";
 import { getShopsByOwner, getOrdersByShop } from "../../firebase/firestore";
+import Icon from "../../components/ui/Icon";
 
 const STATUS_LABEL = {
-    pending: { text: "รอตรวจสอบ", color: "#a60" },
-    approved: { text: "อนุมัติแล้ว", color: "#080" },
-    rejected: { text: "ไม่อนุมัติ", color: "#c00" },
+    pending: { text: "รอตรวจสอบ", color: "var(--color-warning)" },
+    approved: { text: "อนุมัติแล้ว", color: "var(--color-success)" },
+    rejected: { text: "ไม่อนุมัติ", color: "var(--color-danger)" },
 };
 
 export default function SellerDashboardPage() {
@@ -49,24 +49,23 @@ export default function SellerDashboardPage() {
         );
     }
 
-    const statusInfo = STATUS_LABEL[shop.status] || { text: shop.status, color: "#666" };
+    const statusInfo = STATUS_LABEL[shop.status] || { text: shop.status, color: "var(--color-text-muted)" };
 
     return (
         <div style={{ maxWidth: 600, margin: "40px auto", padding: "0 16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <h2 style={{ margin: 0 }}>{shop.name}</h2>
-                <button onClick={handleLogout}>ออกจากระบบ</button>
+                <button onClick={handleLogout}>
+                    <Icon name="log-out" size={16} /> ออกจากระบบ
+                </button>
             </div>
 
             <p style={{ margin: "8px 0" }}>
-                สถานะร้าน:{" "}
-                <strong style={{ color: statusInfo.color }}>{statusInfo.text}</strong>
+                สถานะร้าน: <strong style={{ color: statusInfo.color }}>{statusInfo.text}</strong>
             </p>
 
             {shop.status === "rejected" && shop.rejectReason && (
-                <p style={{ color: "#c00", fontSize: 14 }}>
-                    เหตุผล: {shop.rejectReason}
-                </p>
+                <p style={{ color: "var(--color-danger)", fontSize: 14 }}>เหตุผล: {shop.rejectReason}</p>
             )}
 
             <div
@@ -77,17 +76,25 @@ export default function SellerDashboardPage() {
                     marginTop: 20,
                 }}
             >
-                <div style={{ border: "1px solid #ddd", borderRadius: 10, padding: 14 }}>
-                    <p style={{ margin: 0, fontSize: 13, color: "#666" }}>ออเดอร์ทั้งหมด</p>
-                    <p style={{ margin: 0, fontSize: 24, fontWeight: "bold" }}>{orderCount}</p>
+                <div style={{ border: "1px solid var(--color-border)", borderRadius: 10, padding: 14 }}>
+                    <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-muted)" }}>ออเดอร์ทั้งหมด</p>
+                    <p style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>{orderCount}</p>
                 </div>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 24 }}>
-                <Link to="/seller/products">📦 จัดการสินค้า</Link>
-                <Link to="/seller/orders">🧾 ดูออเดอร์</Link>
-                <Link to="/seller/line-link">💬 เชื่อมต่อ LINE</Link>
-                <Link to="/seller/feed/new">📢 เพิ่มประกาศ</Link>
+                <Link to="/seller/products" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Icon name="box" size={20} /> จัดการสินค้า
+                </Link>
+                <Link to="/seller/orders" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Icon name="receipt" size={20} /> ดูออเดอร์
+                </Link>
+                <Link to="/seller/line-link" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Icon name="message-circle" size={20} /> เชื่อมต่อ LINE
+                </Link>
+                <Link to="/seller/feed/new" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Icon name="megaphone" size={20} /> เพิ่มประกาศ
+                </Link>
             </div>
         </div>
     );

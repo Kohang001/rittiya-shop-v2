@@ -1,13 +1,14 @@
-// src/pages/admin/AdminShopDetailPage.jsx
+// src/pages/admin/AdminShopDetailPage.jsx — อัปเดต: เพิ่มปุ่มย้อนกลับ + ใช้ Icon component
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { getShopById, getAllProducts } from "../../firebase/firestore";
+import Icon from "../../components/ui/Icon";
 
 const STATUS_LABEL = {
-    pending: { text: "รอตรวจสอบ", color: "#a60" },
-    approved: { text: "อนุมัติแล้ว", color: "#080" },
-    rejected: { text: "ไม่อนุมัติ", color: "#c00" },
+    pending: { text: "รอตรวจสอบ", color: "var(--color-warning)" },
+    approved: { text: "อนุมัติแล้ว", color: "var(--color-success)" },
+    rejected: { text: "ไม่อนุมัติ", color: "var(--color-danger)" },
 };
 
 export default function AdminShopDetailPage() {
@@ -83,10 +84,19 @@ export default function AdminShopDetailPage() {
     if (loading) return <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>;
     if (!shop) return <p style={{ textAlign: "center", marginTop: 40 }}>ไม่พบร้านค้า</p>;
 
-    const shopStatusInfo = STATUS_LABEL[shop.status] || { text: shop.status, color: "#666" };
+    const shopStatusInfo = STATUS_LABEL[shop.status] || { text: shop.status, color: "var(--color-text-muted)" };
 
     return (
         <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 16px" }}>
+            {/* ปุ่มย้อนกลับ — แก้ปัญหาที่ต้องแก้ URL เองก่อนหน้านี้ */}
+            <Link
+                to="/admin/shops"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 16, color: "var(--color-text-muted)" }}
+            >
+                <Icon name="arrow-left" size={18} />
+                กลับไปหน้ารายชื่อร้าน
+            </Link>
+
             <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
                 {shop.logoUrl && (
                     <img
@@ -97,37 +107,44 @@ export default function AdminShopDetailPage() {
                 )}
                 <div>
                     <h2 style={{ margin: 0 }}>{shop.name}</h2>
-                    <p style={{ margin: 0, color: "#666" }}>{shop.slogan}</p>
+                    <p style={{ margin: 0, color: "var(--color-text-muted)" }}>{shop.slogan}</p>
                 </div>
             </div>
 
             <div style={{ margin: "16px 0", fontSize: 14 }}>
-                <p>📞 {shop.phone} {shop.ig && `· IG: @${shop.ig}`}</p>
+                <p style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Icon name="phone" size={16} /> {shop.phone}
+                    {shop.ig && (
+                        <>
+                            <Icon name="instagram" size={16} style={{ marginLeft: 12 }} /> @{shop.ig}
+                        </>
+                    )}
+                </p>
                 <p>หมวดหมู่: {shop.category || "-"}</p>
                 <p>
                     สถานะ: <strong style={{ color: shopStatusInfo.color }}>{shopStatusInfo.text}</strong>
                 </p>
-                {shop.rejectReason && <p style={{ color: "#c00" }}>เหตุผลไม่อนุมัติ: {shop.rejectReason}</p>}
+                {shop.rejectReason && <p style={{ color: "var(--color-danger)" }}>เหตุผลไม่อนุมัติ: {shop.rejectReason}</p>}
             </div>
 
             {shop.status !== "approved" && (
                 <button disabled={busy} onClick={() => handleShopAction("approve")}>
-                    ✅ อนุมัติร้านนี้
+                    <Icon name="check" size={16} /> อนุมัติร้านนี้
                 </button>
             )}
             {shop.status !== "rejected" && (
                 <button disabled={busy} onClick={() => handleShopAction("reject")} style={{ marginLeft: 8 }}>
-                    ❌ ไม่อนุมัติร้านนี้
+                    <Icon name="x" size={16} /> ไม่อนุมัติร้านนี้
                 </button>
             )}
 
             <h3 style={{ marginTop: 30 }}>สินค้า ({products.length})</h3>
             {products.length === 0 ? (
-                <p style={{ color: "#888" }}>ยังไม่มีสินค้า</p>
+                <p style={{ color: "var(--color-text-muted)" }}>ยังไม่มีสินค้า</p>
             ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {products.map((product) => {
-                        const info = STATUS_LABEL[product.status] || { text: product.status, color: "#666" };
+                        const info = STATUS_LABEL[product.status] || { text: product.status, color: "var(--color-text-muted)" };
                         return (
                             <div
                                 key={product.id}
@@ -135,7 +152,7 @@ export default function AdminShopDetailPage() {
                                     display: "flex",
                                     justifyContent: "space-between",
                                     alignItems: "center",
-                                    border: "1px solid #eee",
+                                    border: "1px solid var(--color-border)",
                                     borderRadius: 8,
                                     padding: 10,
                                 }}
@@ -150,7 +167,7 @@ export default function AdminShopDetailPage() {
                                     )}
                                     <div>
                                         <p style={{ margin: 0 }}>{product.name}</p>
-                                        <p style={{ margin: 0, fontSize: 13, color: "#666" }}>
+                                        <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-muted)" }}>
                                             {product.price?.toLocaleString()} บาท ·{" "}
                                             <span style={{ color: info.color }}>{info.text}</span>
                                         </p>
@@ -159,12 +176,12 @@ export default function AdminShopDetailPage() {
                                 <div style={{ display: "flex", gap: 6 }}>
                                     {product.status !== "approved" && (
                                         <button disabled={busy} onClick={() => handleProductAction(product.id, "approve")}>
-                                            อนุมัติ
+                                            <Icon name="check" size={14} /> อนุมัติ
                                         </button>
                                     )}
                                     {product.status !== "rejected" && (
                                         <button disabled={busy} onClick={() => handleProductAction(product.id, "reject")}>
-                                            ไม่อนุมัติ
+                                            <Icon name="x" size={14} /> ไม่อนุมัติ
                                         </button>
                                     )}
                                 </div>

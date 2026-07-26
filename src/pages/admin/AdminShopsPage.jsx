@@ -1,12 +1,13 @@
-// src/pages/admin/AdminShopsPage.jsx — อัปเดต: โชว์จำนวนสินค้ารอตรวจของแต่ละร้านในหน้า list เลย
+// src/pages/admin/AdminShopsPage.jsx — อัปเดต: ใช้ Icon component แทนอิโมจิ
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getAllShopsForAdmin, getAllProducts } from "../../firebase/firestore";
+import Icon from "../../components/ui/Icon";
 
 const STATUS_LABEL = {
-    pending: { text: "รอตรวจสอบ", color: "#a60" },
-    approved: { text: "อนุมัติแล้ว", color: "#080" },
-    rejected: { text: "ไม่อนุมัติ", color: "#c00" },
+    pending: { text: "รอตรวจสอบ", color: "var(--color-warning)" },
+    approved: { text: "อนุมัติแล้ว", color: "var(--color-success)" },
+    rejected: { text: "ไม่อนุมัติ", color: "var(--color-danger)" },
 };
 
 export default function AdminShopsPage() {
@@ -21,8 +22,6 @@ export default function AdminShopsPage() {
     async function load() {
         setLoading(true);
         const shopsData = await getAllShopsForAdmin();
-
-        // เช็คจำนวนสินค้าที่ยัง pending อยู่ของแต่ละร้าน (แม้ร้านจะ approved แล้วก็ตาม)
         const shopsWithPendingCount = await Promise.all(
             shopsData.map(async (shop) => {
                 const products = await getAllProducts(shop.id);
@@ -30,7 +29,6 @@ export default function AdminShopsPage() {
                 return { ...shop, pendingProductCount: pendingCount };
             })
         );
-
         setShops(shopsWithPendingCount);
         setLoading(false);
     }
@@ -51,15 +49,15 @@ export default function AdminShopsPage() {
             <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
                 <button
                     onClick={() => setFilter("needsReview")}
-                    style={{ fontWeight: filter === "needsReview" ? "bold" : "normal" }}
+                    style={{ fontWeight: filter === "needsReview" ? 700 : 400 }}
                 >
-                    🔔 ต้องตรวจสอบ
+                    <Icon name="bell" size={16} /> ต้องตรวจสอบ
                 </button>
                 {["pending", "approved", "rejected", "all"].map((f) => (
                     <button
                         key={f}
                         onClick={() => setFilter(f)}
-                        style={{ fontWeight: filter === f ? "bold" : "normal" }}
+                        style={{ fontWeight: filter === f ? 700 : 400 }}
                     >
                         {f === "all" ? "ทั้งหมด" : STATUS_LABEL[f].text}
                     </button>
@@ -67,11 +65,11 @@ export default function AdminShopsPage() {
             </div>
 
             {filteredShops.length === 0 ? (
-                <p style={{ color: "#888" }}>ไม่มีร้านในหมวดนี้</p>
+                <p style={{ color: "var(--color-text-muted)" }}>ไม่มีร้านในหมวดนี้</p>
             ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {filteredShops.map((shop) => {
-                        const info = STATUS_LABEL[shop.status] || { text: shop.status, color: "#666" };
+                        const info = STATUS_LABEL[shop.status] || { text: shop.status, color: "var(--color-text-muted)" };
                         return (
                             <Link
                                 key={shop.id}
@@ -80,7 +78,7 @@ export default function AdminShopsPage() {
                                     display: "flex",
                                     justifyContent: "space-between",
                                     alignItems: "center",
-                                    border: "1px solid #ddd",
+                                    border: "1px solid var(--color-border)",
                                     borderRadius: 8,
                                     padding: 12,
                                     textDecoration: "none",
@@ -89,13 +87,13 @@ export default function AdminShopsPage() {
                             >
                                 <div>
                                     <strong>{shop.name}</strong>
-                                    <p style={{ margin: 0, fontSize: 13, color: "#666" }}>{shop.phone}</p>
+                                    <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-muted)" }}>{shop.phone}</p>
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                     {shop.pendingProductCount > 0 && (
                                         <span
                                             style={{
-                                                background: "#c00",
+                                                background: "var(--color-danger)",
                                                 color: "#fff",
                                                 borderRadius: 999,
                                                 fontSize: 12,

@@ -1,7 +1,8 @@
-// src/components/layout/Navbar.jsx — อัปเดต: แสดงอีเมลที่ login อยู่ + ปุ่ม logout ที่กดได้จากทุกหน้า
+// src/components/layout/Navbar.jsx — อัปเดต: ใช้ Icon สำหรับปุ่ม logout
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { logoutUser } from "../../firebase/auth";
+import Icon from "../ui/Icon";
 
 export default function Navbar() {
     const { user } = useAuth();
@@ -19,12 +20,12 @@ export default function Navbar() {
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "12px 16px",
-                borderBottom: "1px solid #eee",
+                borderBottom: "1px solid var(--color-border)",
                 flexWrap: "wrap",
                 gap: 10,
             }}
         >
-            <Link to="/" style={{ fontWeight: "bold", fontSize: 18, textDecoration: "none", color: "inherit" }}>
+            <Link to="/" style={{ fontWeight: 700, fontSize: 18, color: "var(--color-text)" }}>
                 Rittiya Shop
             </Link>
             <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -33,8 +34,10 @@ export default function Navbar() {
                 {user ? (
                     <>
                         <Link to="/seller/dashboard">Dashboard ร้านฉัน</Link>
-                        <span style={{ fontSize: 13, color: "#666" }}>{user.email}</span>
-                        <button onClick={handleLogout}>ออกจากระบบ</button>
+                        <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{user.email}</span>
+                        <button onClick={handleLogout}>
+                            <Icon name="log-out" size={16} /> ออกจากระบบ
+                        </button>
                     </>
                 ) : (
                     <>

@@ -1,25 +1,24 @@
-// src/components/shop/CartSummary.jsx — อัปเดต Phase 6: เพิ่ม checkoutDisabled
+// src/components/shop/CartSummary.jsx — อัปเดต: ใช้ Icon component แทนอิโมจิ
+import Icon from "../ui/Icon";
+
 export default function CartSummary({ items, total, onQtyChange, onCheckout, checkoutDisabled }) {
     if (items.length === 0) {
         return (
-            <div style={{ padding: 16, border: "1px solid #ddd", borderRadius: 10 }}>
-                <p style={{ color: "#888", margin: 0 }}>ยังไม่มีสินค้าในตะกร้า</p>
+            <div style={{ padding: 16, border: "1px solid var(--color-border)", borderRadius: 10 }}>
+                <p style={{ color: "var(--color-text-muted)", margin: 0 }}>ยังไม่มีสินค้าในตะกร้า</p>
             </div>
         );
     }
 
     return (
-        <div style={{ padding: 16, border: "1px solid #ddd", borderRadius: 10 }}>
-            <h3 style={{ marginTop: 0 }}>ตะกร้าสินค้า</h3>
+        <div style={{ padding: 16, border: "1px solid var(--color-border)", borderRadius: 10 }}>
+            <h3 style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                <Icon name="shopping-cart" size={18} /> ตะกร้าสินค้า
+            </h3>
             {items.map(({ product, qty }) => (
                 <div
                     key={product.id}
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: 8,
-                    }}
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}
                 >
                     <span style={{ fontSize: 14 }}>{product.name}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -29,15 +28,16 @@ export default function CartSummary({ items, total, onQtyChange, onCheckout, che
                     </div>
                 </div>
             ))}
-            <hr />
-            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold" }}>
+            <hr style={{ borderColor: "var(--color-border)" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
                 <span>รวม</span>
                 <span>{total.toLocaleString()} บาท</span>
             </div>
             <button
+                type="submit"
                 onClick={onCheckout}
                 disabled={checkoutDisabled}
-                style={{ width: "100%", marginTop: 12, padding: 10 }}
+                style={{ width: "100%", marginTop: 12, padding: 10, justifyContent: "center" }}
             >
                 {checkoutDisabled ? "กำลังสั่งซื้อ..." : "สั่งซื้อ"}
             </button>
