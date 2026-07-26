@@ -58,11 +58,11 @@ export default function SellerProductsPage() {
         setForm(EMPTY_FORM);
     }
 
-    function notifyAdminNewProduct(productId) {
+    function notifyAdminNewProduct(productName) {
         fetch("/api/notifyNewProduct", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ shopId: shop.id, productId }),
+            body: JSON.stringify({ shopId: shop.id, productName }),
         }).catch((err) => console.error("แจ้งเตือน Admin ไม่สำเร็จ (ไม่กระทบการบันทึก):", err));
     }
 
@@ -86,7 +86,7 @@ export default function SellerProductsPage() {
                 }
                 await updateProduct(shop.id, editingId, updates);
                 if (willBecomePending) {
-                    notifyAdminNewProduct(editingId);
+                    notifyAdminNewProduct(form.name);
                 }
             } else {
                 const newProductId = await addProduct(shop.id, {
@@ -95,7 +95,7 @@ export default function SellerProductsPage() {
                     price: parseFloat(form.price) || 0,
                     imageUrl: form.imageUrl,
                 });
-                notifyAdminNewProduct(newProductId);
+                notifyAdminNewProduct(form.name);
             }
             cancelEdit();
             await load();
