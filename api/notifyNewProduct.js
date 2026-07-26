@@ -25,10 +25,10 @@ export default async function handler(req, res) {
                 {
                     type: "text",
                     text:
-                        `🆕 มีสิ่งที่รอให้ตรวจสอบ!\n` +
+                        `🆕 มีสินค้าใหม่รอตรวจสอบ!\n` +
                         `ร้าน: ${shop.name}\n` +
                         `สินค้า: ${productName}\n\n` +
-                        `เข้าไปตรวจสอบและอนุมัติได้ที่หน้า \n` +
+                        `เข้าไปตรวจสอบและอนุมัติได้ที่หน้า Admin\n` +
                         `https://rittiya-shop-v2.vercel.app/admin/shops/`,
                 },
             ]);
