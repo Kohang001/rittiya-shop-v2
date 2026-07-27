@@ -1,6 +1,7 @@
 // src/pages/seller/SellerProductsPage.jsx — อัปเดต Phase 9: แก้สินค้าที่อนุมัติแล้วต้องรออนุมัติใหม่
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import {
     getShopsByOwner,
     getAllProducts,
@@ -20,6 +21,7 @@ const EMPTY_FORM = { name: "", desc: "", price: "", imageUrl: "" };
 
 export default function SellerProductsPage() {
     const { user } = useAuth();
+    const { showToast } = useToast();
     const [shop, setShop] = useState(null);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -99,9 +101,10 @@ export default function SellerProductsPage() {
             }
             cancelEdit();
             await load();
+            showToast(editingId ? "บันทึกการแก้ไขสำเร็จ" : "เพิ่มสินค้าสำเร็จ", "success");
         } catch (err) {
             console.error(err);
-            alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
+            showToast("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง", "error");
         } finally {
             setSaving(false);
         }

@@ -1,19 +1,22 @@
-// src/pages/admin/AdminShopDetailPage.jsx — อัปเดต: เพิ่มปุ่มย้อนกลับ + ใช้ Icon component
+// src/pages/admin/AdminShopDetailPage.jsx — อัปเดต: Breadcrumb + Toast แทน alert()
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { getShopById, getAllProducts } from "../../firebase/firestore";
 import Icon from "../../components/ui/Icon";
+import Breadcrumb from "../../components/ui/Breadcrumb";
 
 const STATUS_LABEL = {
-    pending: { text: "รอตรวจสอบ", color: "var(--color-warning)" },
-    approved: { text: "อนุมัติแล้ว", color: "var(--color-success)" },
-    rejected: { text: "ไม่อนุมัติ", color: "var(--color-danger)" },
+    pending: { text: "รอตรวจสอบ", color: "var(--color-status-pending)" },
+    approved: { text: "อนุมัติแล้ว", color: "var(--color-status-approved)" },
+    rejected: { text: "ไม่อนุมัติ", color: "var(--color-status-rejected)" },
 };
 
 export default function AdminShopDetailPage() {
     const { shopId } = useParams();
     const { user } = useAuth();
+    const { showToast } = useToast();
     const [shop, setShop] = useState(null);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -38,10 +41,7 @@ export default function AdminShopDetailPage() {
         const idToken = await user.getIdToken();
         const res = await fetch(url, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${idToken}`,
-            },
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
             body: JSON.stringify(body),
         });
         const data = await res.json();
@@ -51,15 +51,14 @@ export default function AdminShopDetailPage() {
 
     async function handleShopAction(action) {
         let reason = "";
-        if (action === "reject") {
-            reason = prompt("เหตุผลที่ไม่อนุมัติ:") || "";
-        }
+        if (action === "reject") reason = prompt("เหตุผลที่ไม่อนุมัติ:") || "";
         setBusy(true);
         try {
             await callApi("/api/approveShop", { shopId, action, reason });
+            showToast(action === "approve" ? "อนุมัติร้านสำเร็จ" : "ปฏิเสธร้านแล้ว", "success");
             await load();
         } catch (err) {
-            alert(err.message);
+            showToast(err.message, "error");
         } finally {
             setBusy(false);
         }
@@ -67,15 +66,14 @@ export default function AdminShopDetailPage() {
 
     async function handleProductAction(productId, action) {
         let reason = "";
-        if (action === "reject") {
-            reason = prompt("เหตุผลที่ไม่อนุมัติสินค้านี้:") || "";
-        }
+        if (action === "reject") reason = prompt("เหตุผลที่ไม่อนุมัติสินค้านี้:") || "";
         setBusy(true);
         try {
             await callApi("/api/approveProduct", { shopId, productId, action, reason });
+            showToast(action === "approve" ? "อนุมัติสินค้าสำเร็จ" : "ปฏิเสธสินค้าแล้ว", "success");
             await load();
         } catch (err) {
-            alert(err.message);
+            showToast(err.message, "error");
         } finally {
             setBusy(false);
         }
@@ -88,22 +86,16 @@ export default function AdminShopDetailPage() {
 
     return (
         <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 16px" }}>
-            {/* ปุ่มย้อนกลับ — แก้ปัญหาที่ต้องแก้ URL เองก่อนหน้านี้ */}
-            <Link
-                to="/admin/shops"
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 16, color: "var(--color-text-muted)" }}
-            >
-                <Icon name="arrow-left" size={18} />
-                กลับไปหน้ารายชื่อร้าน
-            </Link>
+            <Breadcrumb
+                items={[
+                    { label: "รายชื่อร้าน", to: "/admin/shops" },
+                    { label: shop.name },
+                ]}
+            />
 
             <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
                 {shop.logoUrl && (
-                    <img
-                        src={shop.logoUrl}
-                        alt={shop.name}
-                        style={{ width: 70, height: 70, borderRadius: 10, objectFit: "cover" }}
-                    />
+                    <img src={shop.logoUrl} alt={shop.name} style={{ width: 70, height: 70, borderRadius: 10, objectFit: "cover" }} />
                 )}
                 <div>
                     <h2 style={{ margin: 0 }}>{shop.name}</h2>
@@ -159,17 +151,12 @@ export default function AdminShopDetailPage() {
                             >
                                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                                     {product.imageUrl && (
-                                        <img
-                                            src={product.imageUrl}
-                                            alt={product.name}
-                                            style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 6 }}
-                                        />
+                                        <img src={product.imageUrl} alt={product.name} style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 6 }} />
                                     )}
                                     <div>
                                         <p style={{ margin: 0 }}>{product.name}</p>
                                         <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-muted)" }}>
-                                            {product.price?.toLocaleString()} บาท ·{" "}
-                                            <span style={{ color: info.color }}>{info.text}</span>
+                                            {product.price?.toLocaleString()} บาท · <span style={{ color: info.color }}>{info.text}</span>
                                         </p>
                                     </div>
                                 </div>

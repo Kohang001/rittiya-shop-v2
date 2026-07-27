@@ -1,11 +1,14 @@
-// src/pages/public/ShopDetailPage.jsx — อัปเดตหลัง UX Audit: ยกเลิก prompt()/alert(), responsive layout
+// src/pages/public/ShopDetailPage.jsx — อัปเดต: Skeleton + Breadcrumb + Toast
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getShopById, getApprovedProducts } from "../../firebase/firestore";
 import { useCart } from "../../context/CartContext";
+import { useToast } from "../../context/ToastContext";
 import ProductCard from "../../components/shop/ProductCard";
+import ProductCardSkeleton from "../../components/shop/ProductCardSkeleton";
 import CartSummary from "../../components/shop/CartSummary";
 import CheckoutModal from "../../components/shop/CheckoutModal";
+import Breadcrumb from "../../components/ui/Breadcrumb";
 import Icon from "../../components/ui/Icon";
 
 export default function ShopDetailPage() {
@@ -15,6 +18,7 @@ export default function ShopDetailPage() {
     const [loading, setLoading] = useState(true);
     const [showCheckout, setShowCheckout] = useState(false);
     const { addItem, setQty, getCartItems, getTotal, clearCart } = useCart();
+    const { showToast } = useToast();
 
     useEffect(() => {
         Promise.all([getShopById(shopId), getApprovedProducts(shopId)])
@@ -22,15 +26,37 @@ export default function ShopDetailPage() {
                 setShop(shopData);
                 setProducts(productsData);
             })
-            .catch((err) => console.error("โหลดข้อมูลร้านไม่สำเร็จ:", err))
+            .catch((err) => {
+                console.error("โหลดข้อมูลร้านไม่สำเร็จ:", err);
+                showToast("โหลดข้อมูลร้านไม่สำเร็จ", "error");
+            })
             .finally(() => setLoading(false));
     }, [shopId]);
 
-    if (loading) return <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>;
+    if (loading) {
+        return (
+            <div style={{ maxWidth: 1000, margin: "0 auto", padding: "20px 16px" }}>
+                <div className="shop-detail-layout">
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+                        {Array.from({ length: 6 }).map((_, i) => (
+                            <ProductCardSkeleton key={i} />
+                        ))}
+                    </div>
+                    <div />
+                </div>
+            </div>
+        );
+    }
+
     if (!shop) return <p style={{ textAlign: "center", marginTop: 40 }}>ไม่พบร้านค้านี้</p>;
 
     const cartItems = getCartItems(shopId);
     const total = getTotal(shopId);
+
+    function handleAddToCart(product) {
+        addItem(shopId, product);
+        showToast(`เพิ่ม "${product.name}" ลงตะกร้าแล้ว`, "success");
+    }
 
     async function handleConfirmOrder({ customerName, customerContact }) {
         const response = await fetch("/api/createOrder", {
@@ -50,11 +76,13 @@ export default function ShopDetailPage() {
         }
 
         clearCart(shopId);
-        return data; // { orderId, total } — CheckoutModal ใช้แสดงหน้าสำเร็จ
+        return data;
     }
 
     return (
         <div style={{ maxWidth: 1000, margin: "0 auto", padding: "20px 16px" }}>
+            <Breadcrumb items={[{ label: "ร้านค้า", to: "/" }, { label: shop.name }]} />
+
             <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 20 }}>
                 {shop.logoUrl && (
                     <img
@@ -90,7 +118,7 @@ export default function ShopDetailPage() {
                         <p style={{ color: "var(--color-text-muted)" }}>ร้านนี้ยังไม่มีสินค้า</p>
                     ) : (
                         products.map((product) => (
-                            <ProductCard key={product.id} product={product} onAdd={(p) => addItem(shopId, p)} />
+                            <ProductCard key={product.id} product={product} onAdd={handleAddToCart} />
                         ))
                     )}
                 </div>

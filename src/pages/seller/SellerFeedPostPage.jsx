@@ -1,12 +1,14 @@
-// src/pages/seller/SellerFeedPostPage.jsx
+// src/pages/seller/SellerFeedPostPage.jsx — อัปเดต: Toast แทน alert()
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { getShopsByOwner, createFeedPost } from "../../firebase/firestore";
 import ImageUploadField from "../../components/form/ImageUploadField";
 
 export default function SellerFeedPostPage() {
     const { user } = useAuth();
+    const { showToast } = useToast();
     const navigate = useNavigate();
     const [shop, setShop] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -30,17 +32,12 @@ export default function SellerFeedPostPage() {
 
         setSubmitting(true);
         try {
-            await createFeedPost({
-                shopId: shop.id,
-                title,
-                content,
-                imageUrl,
-            });
-            alert("เพิ่มประกาศสำเร็จ! รอ Admin ตรวจสอบก่อนขึ้นหน้า Feed");
+            await createFeedPost({ shopId: shop.id, title, content, imageUrl });
+            showToast("เพิ่มประกาศสำเร็จ รอ Admin ตรวจสอบก่อนขึ้นหน้า Feed", "success");
             navigate("/seller/dashboard");
         } catch (err) {
             console.error(err);
-            alert("เพิ่มประกาศไม่สำเร็จ ลองใหม่อีกครั้ง");
+            showToast("เพิ่มประกาศไม่สำเร็จ ลองใหม่อีกครั้ง", "error");
         } finally {
             setSubmitting(false);
         }
@@ -53,16 +50,18 @@ export default function SellerFeedPostPage() {
         <div style={{ maxWidth: 500, margin: "40px auto", padding: "0 16px" }}>
             <h2>เพิ่มประกาศใหม่</h2>
             <form onSubmit={handleSubmit}>
-                <label>หัวข้อประกาศ</label>
+                <label htmlFor="feed-title">หัวข้อประกาศ</label>
                 <input
+                    id="feed-title"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     style={{ display: "block", width: "100%", marginBottom: 8 }}
                     required
                 />
 
-                <label>ข้อความ</label>
+                <label htmlFor="feed-content">ข้อความ</label>
                 <textarea
+                    id="feed-content"
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     rows={5}
@@ -72,7 +71,7 @@ export default function SellerFeedPostPage() {
 
                 <ImageUploadField label="รูปประกอบ (ไม่บังคับ)" value={imageUrl} onChange={setImageUrl} />
 
-                <p style={{ fontSize: 12, color: "#888" }}>
+                <p style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
                     ประกาศนี้จะรอ Admin ตรวจสอบก่อนขึ้นแสดงในหน้า Feed สาธารณะ
                 </p>
 
