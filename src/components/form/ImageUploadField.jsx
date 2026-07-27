@@ -1,13 +1,8 @@
-// src/components/form/ImageUploadField.jsx
+// src/components/form/ImageUploadField.jsx — อัปเดต: ใช้ validators.js ร่วมกับที่อื่น
 import { useState } from "react";
 import { uploadImage } from "../../cloudinary/upload";
+import { validateImageFile } from "../../utils/validators";
 
-/**
- * ใช้ซ้ำได้ทั้งอัปโหลดโลโก้ร้านและรูปสินค้า
- * @param {string} value - URL รูปปัจจุบัน (ถ้ามี)
- * @param {(url: string) => void} onChange - เรียกตอนอัปโหลดสำเร็จ ได้ URL กลับมา
- * @param {string} label
- */
 export default function ImageUploadField({ value, onChange, label = "รูปภาพ" }) {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState("");
@@ -19,7 +14,12 @@ export default function ImageUploadField({ value, onChange, label = "รูป�
 
         setError("");
 
-        // แสดง preview ทันทีจากไฟล์ในเครื่องก่อน ระหว่างรออัปโหลดจริง
+        const check = validateImageFile(file);
+        if (!check.valid) {
+            setError(check.error);
+            return;
+        }
+
         const localPreview = URL.createObjectURL(file);
         setPreviewUrl(localPreview);
 
@@ -38,27 +38,20 @@ export default function ImageUploadField({ value, onChange, label = "รูป�
 
     return (
         <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", marginBottom: 6 }}>{label}</label>
+            <label>{label}</label>
 
             {previewUrl && (
                 <img
                     src={previewUrl}
                     alt="preview"
-                    style={{
-                        width: 100,
-                        height: 100,
-                        objectFit: "cover",
-                        borderRadius: 8,
-                        marginBottom: 8,
-                        display: "block",
-                    }}
+                    style={{ width: 100, height: 100, objectFit: "cover", borderRadius: 8, marginBottom: 8, display: "block" }}
                 />
             )}
 
             <input type="file" accept="image/*" onChange={handleFileChange} disabled={uploading} />
 
-            {uploading && <p style={{ fontSize: 12, color: "#888" }}>กำลังอัปโหลด...</p>}
-            {error && <p style={{ fontSize: 12, color: "red" }}>{error}</p>}
+            {uploading && <p style={{ fontSize: 12, color: "var(--color-text-muted)" }}>กำลังอัปโหลด...</p>}
+            {error && <p style={{ fontSize: 12, color: "var(--color-danger)" }}>{error}</p>}
         </div>
     );
 }

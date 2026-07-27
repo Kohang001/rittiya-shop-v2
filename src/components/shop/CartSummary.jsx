@@ -1,5 +1,7 @@
-// src/components/shop/CartSummary.jsx — อัปเดต: ปุ่ม +/- ขนาดแตะง่ายขึ้นบนมือถือ (WCAG/HIG)
+// src/components/shop/CartSummary.jsx — อัปเดต: ใช้ QuantityInput และ formatCurrency ร่วมกัน
 import Icon from "../ui/Icon";
+import QuantityInput from "./QuantityInput";
+import { formatCurrency } from "../../utils/formatCurrency";
 
 export default function CartSummary({ items, total, onQtyChange, onCheckout, checkoutDisabled }) {
     if (items.length === 0) {
@@ -21,31 +23,13 @@ export default function CartSummary({ items, total, onQtyChange, onCheckout, che
                     style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}
                 >
                     <span style={{ fontSize: 14 }}>{product.name}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <button
-                            type="button"
-                            className="qty-btn"
-                            aria-label={`ลดจำนวน ${product.name}`}
-                            onClick={() => onQtyChange(product.id, qty - 1)}
-                        >
-                            -
-                        </button>
-                        <span>{qty}</span>
-                        <button
-                            type="button"
-                            className="qty-btn"
-                            aria-label={`เพิ่มจำนวน ${product.name}`}
-                            onClick={() => onQtyChange(product.id, qty + 1)}
-                        >
-                            +
-                        </button>
-                    </div>
+                    <QuantityInput qty={qty} onChange={(newQty) => onQtyChange(product.id, newQty)} label={product.name} />
                 </div>
             ))}
             <hr style={{ borderColor: "var(--color-border)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
                 <span>รวม</span>
-                <span>{total.toLocaleString()} บาท</span>
+                <span>{formatCurrency(total)}</span>
             </div>
             <button
                 type="submit"

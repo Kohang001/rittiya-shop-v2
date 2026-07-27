@@ -74,6 +74,11 @@ export default function Navbar() {
                                 </Link>
                             </>
                         )}
+
+                        <hr style={{ width: "100%", borderColor: "var(--color-border)" }} />
+                        <Link to="/contact" onClick={() => setDrawerOpen(false)}>
+                            ติดต่อเรา
+                        </Link>
                     </div>
                 </div>
             )}
