@@ -54,7 +54,10 @@ export default function SellerDashboardPage() {
     return (
         <div style={{ maxWidth: 600, margin: "40px auto", padding: "0 16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h2 style={{ margin: 0 }}>{shop.name}</h2>
+                <div>
+                    <h2 style={{ margin: 0 }}>{shop.name}</h2>
+                    <p style={{ margin: "2px 0 0 0", fontSize: 13, color: "var(--color-text-muted)" }}>{user.email}</p>
+                </div>
                 <button onClick={handleLogout}>
                     <Icon name="log-out" size={16} /> ออกจากระบบ
                 </button>

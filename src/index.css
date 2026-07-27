@@ -247,40 +247,27 @@ label {
   }
 }
 
-/* ---------- Mobile drawer menu ---------- */
-.navbar-hamburger {
-  display: none;
+/* ---------- Nav drawer menu (แสดงทุกขนาดจอเสมอ) ---------- */
+.navbar-drawer {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 1500;
 }
 
-@media (max-width: 640px) {
-  .navbar-links {
-    display: none;
-  }
-
-  .navbar-hamburger {
-    display: inline-flex;
-  }
-
-  .navbar-drawer {
-    position: fixed;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.5);
-    z-index: 1500;
-  }
-
-  .navbar-drawer-panel {
-    position: absolute;
-    top: 0;
-    right: 0;
-    height: 100%;
-    width: 260px;
-    background: var(--color-bg);
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    box-shadow: var(--shadow-md);
-  }
+.navbar-drawer-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 260px;
+  max-width: 80vw;
+  background: var(--color-bg);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-md);
 }
 
 /* ---------- Hero ---------- */

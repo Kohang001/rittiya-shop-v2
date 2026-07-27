@@ -1,4 +1,4 @@
-// src/components/layout/Navbar.jsx — อัปเดต: Mobile Drawer Menu แทน flex-wrap แบบเดิม
+// src/components/layout/Navbar.jsx — อัปเดต: Header เรียบเสมอทุกขนาดจอ (Brand + 2 ลิงก์ + เมนู)
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -16,37 +16,6 @@ export default function Navbar() {
         navigate("/");
     }
 
-    const links = (
-        <>
-            <Link to="/" onClick={() => setDrawerOpen(false)}>
-                ร้านค้า
-            </Link>
-            <Link to="/feed" onClick={() => setDrawerOpen(false)}>
-                ประกาศ
-            </Link>
-            {user ? (
-                <>
-                    <Link to="/seller/dashboard" onClick={() => setDrawerOpen(false)}>
-                        Dashboard ร้านฉัน
-                    </Link>
-                    <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{user.email}</span>
-                    <button onClick={handleLogout}>
-                        <Icon name="log-out" size={16} /> ออกจากระบบ
-                    </button>
-                </>
-            ) : (
-                <>
-                    <Link to="/seller/login" onClick={() => setDrawerOpen(false)}>
-                        เข้าสู่ระบบ
-                    </Link>
-                    <Link to="/seller/register" onClick={() => setDrawerOpen(false)}>
-                        เปิดร้านค้า
-                    </Link>
-                </>
-            )}
-        </>
-    );
-
     return (
         <nav
             style={{
@@ -61,22 +30,20 @@ export default function Navbar() {
                 Rittiya Shop
             </Link>
 
-            {/* เมนูปกติ — ซ่อนบนจอเล็กกว่า 640px (ดู index.css) */}
-            <div className="navbar-links" style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                {links}
+            {/* Header หลัก — เรียบเสมอทุกขนาดจอ มีแค่นี้ */}
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <Link to="/">ร้านค้า</Link>
+                <Link to="/feed">ประกาศ</Link>
+                <button
+                    onClick={() => setDrawerOpen(true)}
+                    aria-label="เปิดเมนู"
+                    style={{ border: "none", background: "transparent" }}
+                >
+                    <Icon name="menu" size={22} />
+                </button>
             </div>
 
-            {/* ปุ่มแฮมเบอร์เกอร์ — โชว์เฉพาะจอเล็กกว่า 640px */}
-            <button
-                className="navbar-hamburger"
-                onClick={() => setDrawerOpen(true)}
-                aria-label="เปิดเมนู"
-                style={{ border: "none", background: "transparent" }}
-            >
-                <Icon name="menu" size={22} />
-            </button>
-
-            {/* Drawer สำหรับมือถือ */}
+            {/* Drawer — รวมทุกอย่างที่เกี่ยวกับบัญชี ไม่ว่าจอไหนก็เข้าทางนี้ทางเดียว */}
             {drawerOpen && (
                 <div className="navbar-drawer" onClick={() => setDrawerOpen(false)}>
                     <div className="navbar-drawer-panel" onClick={(e) => e.stopPropagation()}>
@@ -87,7 +54,26 @@ export default function Navbar() {
                         >
                             <Icon name="x" size={20} />
                         </button>
-                        {links}
+
+                        {user ? (
+                            <>
+                                <Link to="/seller/dashboard" onClick={() => setDrawerOpen(false)}>
+                                    Dashboard ของฉัน
+                                </Link>
+                                <button onClick={handleLogout}>
+                                    <Icon name="log-out" size={16} /> ออกจากระบบ
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <Link to="/seller/login" onClick={() => setDrawerOpen(false)}>
+                                    เข้าสู่ระบบ
+                                </Link>
+                                <Link to="/seller/register" onClick={() => setDrawerOpen(false)}>
+                                    เปิดร้านค้า
+                                </Link>
+                            </>
+                        )}
                     </div>
                 </div>
             )}

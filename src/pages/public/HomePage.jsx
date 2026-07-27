@@ -1,11 +1,13 @@
 // src/pages/public/HomePage.jsx — อัปเดต: Hero Section + Skeleton Loader
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { getApprovedShops } from "../../firebase/firestore";
 import ShopCard from "../../components/shop/ShopCard";
 import ShopCardSkeleton from "../../components/shop/ShopCardSkeleton";
 
 export default function HomePage() {
+    const { user } = useAuth();
     const [shops, setShops] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchText, setSearchText] = useState("");
@@ -45,9 +47,11 @@ export default function HomePage() {
                     <a href="#shop-list">
                         <button type="submit">สำรวจร้านค้า</button>
                     </a>
-                    <Link to="/seller/register">
-                        <button type="button">สมัครเป็นผู้ขาย</button>
-                    </Link>
+                    {!user && (
+                        <Link to="/seller/register">
+                            <button type="button">สมัครเป็นผู้ขาย</button>
+                        </Link>
+                    )}
                 </div>
             </section>
 
