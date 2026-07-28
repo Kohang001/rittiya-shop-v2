@@ -37,7 +37,7 @@ export default function CartSummary({ items, total, onQtyChange, onCheckout, che
                 disabled={checkoutDisabled}
                 style={{ width: "100%", marginTop: 12, padding: 10, justifyContent: "center" }}
             >
-                {checkoutDisabled ? "กำลังสั่งซื้อ..." : "สั่งซื้อ"}
+                {checkoutDisabled ? "ร้านปิดรับออเดอร์ชั่วคราว" : "สั่งซื้อ"}
             </button>
         </div>
     );

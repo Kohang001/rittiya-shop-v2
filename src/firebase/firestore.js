@@ -53,6 +53,7 @@ export async function createShopDraft(shopData) {
     const docRef = await addDoc(collection(db, "shops"), {
         ...shopData,
         status: "pending",
+        isOpen: true,
         lineUserId: null,
         lineLinkCode,
         createdAt: serverTimestamp(),
@@ -63,6 +64,11 @@ export async function createShopDraft(shopData) {
 export async function updateShopInfo(shopId, updates) {
     const { status, ownerUid, ...safeUpdates } = updates;
     await updateDoc(doc(db, "shops", shopId), safeUpdates);
+}
+
+/** เปิด/ปิดร้านชั่วคราว (เช่นช่วงสอบ) — ไม่กระทบ status การอนุมัติ */
+export async function setShopOpenStatus(shopId, isOpen) {
+    await updateDoc(doc(db, "shops", shopId), { isOpen });
 }
 
 function generateLineLinkCode() {
@@ -119,9 +125,20 @@ export async function getAllPendingProductsGlobal() {
     }));
 }
 
-/* ---------------------------------------------
- * ORDERS (subcollection ของ shops, อ่านอย่างเดียวฝั่ง client)
- * ------------------------------------------- */
+/**
+ * ใช้ในหน้าค้นหาสินค้าข้ามทุกร้าน — ดึงสินค้า approved ทั้งหมดมาก่อน แล้วกรองชื่อฝั่ง client
+ * (โปรเจกต์ขนาดนี้ยังไม่จำเป็นต้องใช้ full-text search service แยกต่างหาก)
+ * ต้องมี Firestore Index composite: collection group "products", field "status" Ascending
+ */
+export async function getAllApprovedProductsGlobal() {
+    const q = query(collectionGroup(db, "products"), where("status", "==", "approved"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => ({
+        id: d.id,
+        shopId: d.ref.parent.parent.id,
+        ...d.data(),
+    }));
+}
 
 export async function getOrdersByShop(shopId) {
     const q = query(

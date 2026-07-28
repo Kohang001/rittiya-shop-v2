@@ -1,16 +1,15 @@
-// src/components/shop/CheckoutModal.jsx
+// src/components/shop/CheckoutModal.jsx — อัปเดต: แสดง QR PromptPay อัตโนมัติหลังสั่งซื้อสำเร็จ
 import { useState } from "react";
+import { generatePromptPayQR } from "../../utils/promptpay";
 
-/**
- * แทนที่ window.prompt()/alert() ทั้งหมดตอนสั่งซื้อ
- * แสดงรายการสินค้า ยอดรวม ให้ตรวจทานก่อนกรอกชื่อ/เบอร์ แล้วยืนยัน
- */
-export default function CheckoutModal({ items, total, onConfirm, onClose }) {
+export default function CheckoutModal({ items, total, promptpayTarget, onConfirm, onClose }) {
     const [customerName, setCustomerName] = useState("");
     const [customerContact, setCustomerContact] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [successData, setSuccessData] = useState(null);
+    const [qrDataUrl, setQrDataUrl] = useState(null);
+    const [qrError, setQrError] = useState("");
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -23,6 +22,16 @@ export default function CheckoutModal({ items, total, onConfirm, onClose }) {
         try {
             const result = await onConfirm({ customerName, customerContact });
             setSuccessData(result);
+
+            if (promptpayTarget) {
+                try {
+                    const dataUrl = await generatePromptPayQR(promptpayTarget, result.total);
+                    setQrDataUrl(dataUrl);
+                } catch (qrErr) {
+                    console.error("สร้าง QR ไม่สำเร็จ:", qrErr);
+                    setQrError("สร้าง QR อัตโนมัติไม่สำเร็จ — โอนเงินตามเบอร์พร้อมเพย์ของร้านแทนได้");
+                }
+            }
         } catch (err) {
             setError(err.message || "สั่งซื้อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
         } finally {
@@ -60,12 +69,26 @@ export default function CheckoutModal({ items, total, onConfirm, onClose }) {
                 }}
             >
                 {successData ? (
-                    // ---------- สถานะสำเร็จ ----------
                     <div style={{ textAlign: "center" }}>
                         <h2 id="checkout-modal-title">สั่งซื้อสำเร็จ</h2>
                         <p style={{ color: "var(--color-text-muted)" }}>
                             ยอดรวม <strong>{successData.total.toLocaleString()} บาท</strong>
                         </p>
+
+                        {qrDataUrl && (
+                            <div style={{ margin: "16px 0" }}>
+                                <img
+                                    src={qrDataUrl}
+                                    alt="PromptPay QR Code"
+                                    style={{ width: 220, height: 220, margin: "0 auto", display: "block" }}
+                                />
+                                <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginTop: 8 }}>
+                                    สแกนจ่ายผ่านพร้อมเพย์ ({promptpayTarget})
+                                </p>
+                            </div>
+                        )}
+                        {qrError && <p style={{ fontSize: 13, color: "var(--color-danger)" }}>{qrError}</p>}
+
                         <p style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
                             ทางร้านจะได้รับแจ้งเตือนและติดต่อกลับหาคุณผ่านช่องทางที่ให้ไว้
                         </p>
@@ -74,7 +97,6 @@ export default function CheckoutModal({ items, total, onConfirm, onClose }) {
                         </button>
                     </div>
                 ) : (
-                    // ---------- ฟอร์มยืนยันคำสั่งซื้อ ----------
                     <form onSubmit={handleSubmit}>
                         <h2 id="checkout-modal-title" style={{ marginBottom: 12 }}>
                             ตรวจสอบคำสั่งซื้อ
@@ -116,9 +138,7 @@ export default function CheckoutModal({ items, total, onConfirm, onClose }) {
                             style={{ display: "block", width: "100%", marginBottom: 10 }}
                         />
 
-                        {error && (
-                            <p style={{ color: "var(--color-danger)", fontSize: 13, marginBottom: 10 }}>{error}</p>
-                        )}
+                        {error && <p style={{ color: "var(--color-danger)", fontSize: 13, marginBottom: 10 }}>{error}</p>}
 
                         <div style={{ display: "flex", gap: 8 }}>
                             <button type="button" onClick={onClose} disabled={submitting} style={{ flex: 1 }}>

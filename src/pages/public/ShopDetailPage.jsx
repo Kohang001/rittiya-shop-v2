@@ -1,4 +1,4 @@
-// src/pages/public/ShopDetailPage.jsx — อัปเดต: Skeleton + Breadcrumb + Toast
+// src/pages/public/ShopDetailPage.jsx — อัปเดต: เช็คร้านปิดชั่วคราว + ส่ง promptpayTarget ให้ CheckoutModal
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getShopById, getApprovedProducts } from "../../firebase/firestore";
@@ -50,8 +50,10 @@ export default function ShopDetailPage() {
 
     if (!shop) return <p style={{ textAlign: "center", marginTop: 40 }}>ไม่พบร้านค้านี้</p>;
 
+    const isClosed = shop.isOpen === false;
     const cartItems = getCartItems(shopId);
     const total = getTotal(shopId);
+    const promptpayTarget = shop.promptpayId || shop.phone;
 
     function handleAddToCart(product) {
         addItem(shopId, product);
@@ -105,6 +107,22 @@ export default function ShopDetailPage() {
                 </div>
             </div>
 
+            {isClosed && (
+                <div
+                    className="card"
+                    style={{
+                        padding: 12,
+                        marginBottom: 16,
+                        background: "var(--color-status-pending-bg)",
+                        color: "var(--color-status-pending)",
+                        textAlign: "center",
+                        fontSize: 14,
+                    }}
+                >
+                    ร้านนี้ปิดรับออเดอร์ชั่วคราว ยังดูสินค้าได้ตามปกติ แต่สั่งซื้อไม่ได้ตอนนี้
+                </div>
+            )}
+
             <div className="shop-detail-layout">
                 <div
                     style={{
@@ -118,7 +136,12 @@ export default function ShopDetailPage() {
                         <p style={{ color: "var(--color-text-muted)" }}>ร้านนี้ยังไม่มีสินค้า</p>
                     ) : (
                         products.map((product) => (
-                            <ProductCard key={product.id} product={product} onAdd={handleAddToCart} />
+                            <ProductCard
+                                key={product.id}
+                                product={product}
+                                onAdd={handleAddToCart}
+                                disabled={isClosed}
+                            />
                         ))
                     )}
                 </div>
@@ -129,6 +152,7 @@ export default function ShopDetailPage() {
                         total={total}
                         onQtyChange={(productId, qty) => setQty(shopId, productId, qty)}
                         onCheckout={() => setShowCheckout(true)}
+                        checkoutDisabled={isClosed}
                     />
                 </div>
             </div>
@@ -137,6 +161,7 @@ export default function ShopDetailPage() {
                 <CheckoutModal
                     items={cartItems}
                     total={total}
+                    promptpayTarget={promptpayTarget}
                     onConfirm={handleConfirmOrder}
                     onClose={() => setShowCheckout(false)}
                 />

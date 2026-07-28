@@ -35,6 +35,7 @@ export default function SellerRegisterPage() {
             slogan: "",
             logoUrl: "",
             phone: "",
+            promptpayId: "",
             ig: "",
             category: "",
             products: [],
@@ -96,6 +97,7 @@ export default function SellerRegisterPage() {
                 slogan: data.slogan,
                 logoUrl: data.logoUrl,
                 phone: data.phone,
+                promptpayId: data.promptpayId,
                 ig: data.ig,
                 category: data.category,
             });
@@ -211,6 +213,14 @@ export default function SellerRegisterPage() {
                             style={{ display: "block", width: "100%", marginBottom: 8 }}
                         />
                         {errors.phone && <p style={{ color: "var(--color-danger)" }}>กรุณากรอกเบอร์โทร</p>}
+
+                        <label htmlFor="reg-promptpay">เลขพร้อมเพย์ (ไม่บังคับ — ถ้าไม่กรอกจะใช้เบอร์โทรร้านแทน)</label>
+                        <input
+                            id="reg-promptpay"
+                            placeholder="เบอร์โทรหรือเลขบัตรประชาชนที่ผูกพร้อมเพย์"
+                            {...register("promptpayId")}
+                            style={{ display: "block", width: "100%", marginBottom: 8 }}
+                        />
 
                         <label htmlFor="reg-ig">ไอจี (ไม่บังคับ)</label>
                         <input

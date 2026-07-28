@@ -2,8 +2,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { logoutUser } from "../../firebase/auth";
-import { getShopsByOwner, getOrdersByShop } from "../../firebase/firestore";
+import { getShopsByOwner, getOrdersByShop, setShopOpenStatus } from "../../firebase/firestore";
 import Icon from "../../components/ui/Icon";
 
 const STATUS_LABEL = {
@@ -14,10 +15,12 @@ const STATUS_LABEL = {
 
 export default function SellerDashboardPage() {
     const { user } = useAuth();
+    const { showToast } = useToast();
     const navigate = useNavigate();
     const [shop, setShop] = useState(null);
     const [orderCount, setOrderCount] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [togglingOpen, setTogglingOpen] = useState(false);
 
     useEffect(() => {
         async function load() {
@@ -36,6 +39,20 @@ export default function SellerDashboardPage() {
     async function handleLogout() {
         await logoutUser();
         navigate("/seller/login");
+    }
+
+    async function handleToggleOpen() {
+        setTogglingOpen(true);
+        try {
+            const newValue = !(shop.isOpen !== false);
+            await setShopOpenStatus(shop.id, newValue);
+            setShop({ ...shop, isOpen: newValue });
+            showToast(newValue ? "เปิดร้านแล้ว" : "ปิดร้านชั่วคราวแล้ว", "success");
+        } catch (err) {
+            showToast("เปลี่ยนสถานะร้านไม่สำเร็จ", "error");
+        } finally {
+            setTogglingOpen(false);
+        }
     }
 
     if (loading) return <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>;
@@ -66,6 +83,27 @@ export default function SellerDashboardPage() {
             <p style={{ margin: "8px 0" }}>
                 สถานะร้าน: <strong style={{ color: statusInfo.color }}>{statusInfo.text}</strong>
             </p>
+
+            {shop.status === "approved" && (
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: "var(--radius-sm)",
+                        padding: "10px 14px",
+                        marginBottom: 12,
+                    }}
+                >
+                    <span style={{ fontSize: 14 }}>
+                        {shop.isOpen !== false ? "🟢 ร้านเปิดรับออเดอร์อยู่" : "⏸️ ร้านปิดรับออเดอร์ชั่วคราว"}
+                    </span>
+                    <button onClick={handleToggleOpen} disabled={togglingOpen}>
+                        {shop.isOpen !== false ? "ปิดร้านชั่วคราว" : "เปิดร้านอีกครั้ง"}
+                    </button>
+                </div>
+            )}
 
             {shop.status === "rejected" && shop.rejectReason && (
                 <p style={{ color: "var(--color-danger)", fontSize: 14 }}>เหตุผล: {shop.rejectReason}</p>

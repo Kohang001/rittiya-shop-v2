@@ -8,6 +8,7 @@ import HomePage from "./pages/public/HomePage";
 import FeedPage from "./pages/public/FeedPage";
 import ShopDetailPage from "./pages/public/ShopDetailPage";
 import ContactPage from "./pages/public/ContactPage";
+import SearchPage from "./pages/public/SearchPage";
 import SellerLoginPage from "./pages/seller/SellerLoginPage";
 import SellerRegisterPage from "./pages/seller/SellerRegisterPage";
 import SellerDashboardPage from "./pages/seller/SellerDashboardPage";
@@ -32,6 +33,7 @@ function App() {
                     <Route path="/" element={<HomePage />} />
                     <Route path="/feed" element={<FeedPage />} />
                     <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/search" element={<SearchPage />} />
                     <Route path="/shop/:shopId" element={<ShopDetailPage />} />
 
                     <Route path="/seller/login" element={<SellerLoginPage />} />

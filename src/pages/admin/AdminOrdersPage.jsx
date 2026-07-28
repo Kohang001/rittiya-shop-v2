@@ -7,6 +7,13 @@ import Breadcrumb from "../../components/ui/Breadcrumb";
 import AdminNav from "../../components/layout/AdminNav";
 import { formatCurrency } from "../../utils/formatCurrency";
 
+const ORDER_STATUS_LABEL = {
+    pending: { text: "รอยืนยัน", cls: "pending" },
+    preparing: { text: "กำลังทำ", cls: "pending" },
+    completed: { text: "เสร็จแล้ว", cls: "approved" },
+    cancelled: { text: "ยกเลิก", cls: "rejected" },
+};
+
 export default function AdminOrdersPage() {
     const { orders, loading: ordersLoading } = useAllOrdersForAdmin();
     const { shops, loading: shopsLoading } = useAllShopsForAdmin();
@@ -57,6 +64,11 @@ export default function AdminOrdersPage() {
                                         {shopNameById[order.shopId] || "ร้านที่ถูกลบไปแล้ว"}
                                     </Link>
                                     <span>{formatCurrency(order.total)}</span>
+                                </div>
+                                <div style={{ margin: "4px 0" }}>
+                                    <span className={`status-badge status-badge--${ORDER_STATUS_LABEL[order.status || "pending"].cls}`}>
+                                        {ORDER_STATUS_LABEL[order.status || "pending"].text}
+                                    </span>
                                 </div>
                                 <p style={{ margin: "4px 0", fontSize: 13, color: "var(--color-text-muted)" }}>
                                     {order.customerName} · {order.customerContact}
