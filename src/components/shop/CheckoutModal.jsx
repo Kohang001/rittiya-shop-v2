@@ -1,15 +1,20 @@
-// src/components/shop/CheckoutModal.jsx — อัปเดต: แสดง QR PromptPay อัตโนมัติหลังสั่งซื้อสำเร็จ
+// src/components/shop/CheckoutModal.jsx — อัปเดต: โชว์ PromptPay QR และ/หรือบัญชีธนาคาร + อัปโหลดสลิป
 import { useState } from "react";
 import { generatePromptPayQR } from "../../utils/promptpay";
+import { uploadImage } from "../../cloudinary/upload";
+import { validateImageFile } from "../../utils/validators";
 
-export default function CheckoutModal({ items, total, promptpayTarget, onConfirm, onClose }) {
+export default function CheckoutModal({ shopId, items, total, onConfirm, onClose }) {
     const [customerName, setCustomerName] = useState("");
     const [customerContact, setCustomerContact] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [successData, setSuccessData] = useState(null);
     const [qrDataUrl, setQrDataUrl] = useState(null);
-    const [qrError, setQrError] = useState("");
+
+    const [slipUploading, setSlipUploading] = useState(false);
+    const [slipError, setSlipError] = useState("");
+    const [slipSent, setSlipSent] = useState(false);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -23,13 +28,13 @@ export default function CheckoutModal({ items, total, promptpayTarget, onConfirm
             const result = await onConfirm({ customerName, customerContact });
             setSuccessData(result);
 
-            if (promptpayTarget) {
+            const promptpayId = result.paymentInfo?.promptpayId;
+            if (promptpayId) {
                 try {
-                    const dataUrl = await generatePromptPayQR(promptpayTarget, result.total);
+                    const dataUrl = await generatePromptPayQR(promptpayId, result.total);
                     setQrDataUrl(dataUrl);
                 } catch (qrErr) {
                     console.error("สร้าง QR ไม่สำเร็จ:", qrErr);
-                    setQrError("สร้าง QR อัตโนมัติไม่สำเร็จ — โอนเงินตามเบอร์พร้อมเพย์ของร้านแทนได้");
                 }
             }
         } catch (err) {
@@ -38,6 +43,38 @@ export default function CheckoutModal({ items, total, promptpayTarget, onConfirm
             setSubmitting(false);
         }
     }
+
+    async function handleSlipUpload(e) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const check = validateImageFile(file);
+        if (!check.valid) {
+            setSlipError(check.error);
+            return;
+        }
+
+        setSlipError("");
+        setSlipUploading(true);
+        try {
+            const slipUrl = await uploadImage(file);
+            const res = await fetch("/api/uploadSlip", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ shopId, orderId: successData.orderId, slipUrl }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "ส่งสลิปไม่สำเร็จ");
+            setSlipSent(true);
+        } catch (err) {
+            setSlipError(err.message || "ส่งสลิปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        } finally {
+            setSlipUploading(false);
+        }
+    }
+
+    const bank = successData?.paymentInfo;
+    const hasBankInfo = bank?.bankName && bank?.bankAccountNumber && bank?.bankAccountName;
 
     return (
         <div
@@ -77,20 +114,49 @@ export default function CheckoutModal({ items, total, promptpayTarget, onConfirm
 
                         {qrDataUrl && (
                             <div style={{ margin: "16px 0" }}>
-                                <img
-                                    src={qrDataUrl}
-                                    alt="PromptPay QR Code"
-                                    style={{ width: 220, height: 220, margin: "0 auto", display: "block" }}
-                                />
+                                <img src={qrDataUrl} alt="PromptPay QR Code" style={{ width: 200, height: 200, margin: "0 auto", display: "block" }} />
                                 <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginTop: 8 }}>
-                                    สแกนจ่ายผ่านพร้อมเพย์ ({promptpayTarget})
+                                    สแกนจ่ายผ่านพร้อมเพย์
                                 </p>
                             </div>
                         )}
-                        {qrError && <p style={{ fontSize: 13, color: "var(--color-danger)" }}>{qrError}</p>}
 
-                        <p style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-                            ทางร้านจะได้รับแจ้งเตือนและติดต่อกลับหาคุณผ่านช่องทางที่ให้ไว้
+                        {hasBankInfo && (
+                            <div className="card" style={{ padding: 14, margin: "16px 0", textAlign: "left" }}>
+                                <p style={{ margin: "0 0 4px 0", fontSize: 13, color: "var(--color-text-muted)" }}>
+                                    หรือโอนผ่านบัญชีธนาคาร
+                                </p>
+                                <p style={{ margin: 0, fontSize: 14 }}>ธนาคาร: {bank.bankName}</p>
+                                <p style={{ margin: 0, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
+                                    เลขบัญชี: <strong>{bank.bankAccountNumber}</strong>
+                                    <button
+                                        type="button"
+                                        onClick={() => navigator.clipboard.writeText(bank.bankAccountNumber)}
+                                        style={{ padding: "2px 8px", fontSize: 12 }}
+                                    >
+                                        คัดลอก
+                                    </button>
+                                </p>
+                                <p style={{ margin: 0, fontSize: 14 }}>ชื่อบัญชี: {bank.bankAccountName}</p>
+                            </div>
+                        )}
+
+                        {/* ---------- อัปโหลดสลิป ---------- */}
+                        {!slipSent ? (
+                            <div style={{ marginTop: 16, textAlign: "left" }}>
+                                <label htmlFor="slip-upload">แนบสลิปการโอนเงิน (เพื่อให้ร้านตรวจสอบเร็วขึ้น)</label>
+                                <input id="slip-upload" type="file" accept="image/*" onChange={handleSlipUpload} disabled={slipUploading} />
+                                {slipUploading && <p style={{ fontSize: 12, color: "var(--color-text-muted)" }}>กำลังส่งสลิป...</p>}
+                                {slipError && <p style={{ fontSize: 12, color: "var(--color-danger)" }}>{slipError}</p>}
+                            </div>
+                        ) : (
+                            <p style={{ color: "var(--color-success)", fontSize: 14, marginTop: 16 }}>
+                                ✅ ส่งสลิปให้ร้านแล้ว รอร้านตรวจสอบและยืนยัน
+                            </p>
+                        )}
+
+                        <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 16 }}>
+                            ทางร้านจะติดต่อกลับหาคุณผ่านช่องทางที่ให้ไว้หลังตรวจสอบยอดโอนแล้ว
                         </p>
                         <button type="submit" onClick={onClose} style={{ width: "100%", marginTop: 12 }}>
                             ปิดหน้าต่างนี้
@@ -104,10 +170,7 @@ export default function CheckoutModal({ items, total, promptpayTarget, onConfirm
 
                         <div style={{ marginBottom: 16 }}>
                             {items.map(({ product, qty }) => (
-                                <div
-                                    key={product.id}
-                                    style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 6 }}
-                                >
+                                <div key={product.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 6 }}>
                                     <span>
                                         {product.name} × {qty}
                                     </span>

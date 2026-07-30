@@ -8,7 +8,8 @@ import AdminNav from "../../components/layout/AdminNav";
 import { formatCurrency } from "../../utils/formatCurrency";
 
 const ORDER_STATUS_LABEL = {
-    pending: { text: "รอยืนยัน", cls: "pending" },
+    pending: { text: "รอชำระเงิน", cls: "pending" },
+    slip_uploaded: { text: "ส่งสลิปแล้ว", cls: "pending" },
     preparing: { text: "กำลังทำ", cls: "pending" },
     completed: { text: "เสร็จแล้ว", cls: "approved" },
     cancelled: { text: "ยกเลิก", cls: "rejected" },

@@ -1,4 +1,4 @@
-// api/createOrder.js — เวอร์ชันล่าสุด: รวม status ออเดอร์ + เช็คร้านปิดชั่วคราว + push LINE
+// api/createOrder.js — อัปเดต: ส่ง paymentInfo ครบ + แก้ข้อความ LINE ให้บอกว่า "รอชำระเงิน" ไม่ใช่ "มีออเดอร์"
 import { adminDb } from "./_firebaseAdmin.js";
 import { pushMessage } from "./_line.js";
 
@@ -46,7 +46,6 @@ export default async function handler(req, res) {
         if (shop.status !== "approved") {
             return res.status(403).json({ error: "ร้านนี้ยังไม่เปิดให้สั่งซื้อ" });
         }
-        // เช็คร้านปิดชั่วคราว — ป้องกันแม้มีคนเรียก API ตรงๆ ข้ามหน้าเว็บ (undefined ถือว่าเปิด เพื่อรองรับร้านเก่าก่อนมีฟีเจอร์นี้)
         if (shop.isOpen === false) {
             return res.status(403).json({ error: "ร้านนี้ปิดรับออเดอร์ชั่วคราว" });
         }
@@ -58,7 +57,6 @@ export default async function handler(req, res) {
             if (!item.productId || !item.qty || item.qty <= 0) {
                 return res.status(400).json({ error: "ข้อมูลสินค้าไม่ถูกต้อง" });
             }
-
             const productRef = shopRef.collection("products").doc(item.productId);
             const productSnap = await productRef.get();
             if (!productSnap.exists) {
@@ -68,15 +66,9 @@ export default async function handler(req, res) {
             if (product.status !== "approved") {
                 return res.status(400).json({ error: `สินค้า "${product.name}" ไม่พร้อมขาย` });
             }
-
             const qty = Number(item.qty);
             total += product.price * qty;
-            validatedItems.push({
-                productId: item.productId,
-                name: product.name,
-                price: product.price,
-                qty,
-            });
+            validatedItems.push({ productId: item.productId, name: product.name, price: product.price, qty });
         }
 
         const orderRef = await shopRef.collection("orders").add({
@@ -84,7 +76,7 @@ export default async function handler(req, res) {
             customerContact: String(customerContact).slice(0, 100),
             items: validatedItems,
             total,
-            status: "pending", // pending -> preparing -> completed (หรือ cancelled)
+            status: "pending", // pending(รอชำระเงิน) -> slip_uploaded -> preparing -> completed / cancelled
             createdAt: new Date(),
         });
 
@@ -94,11 +86,12 @@ export default async function handler(req, res) {
                 {
                     type: "text",
                     text:
-                        `📦 มีออเดอร์ใหม่!\n` +
+                        `🕐 มีคำสั่งซื้อใหม่ — รอลูกค้าชำระเงิน\n` +
                         `ผู้สั่ง: ${customerName}\n` +
                         `ติดต่อ: ${customerContact}\n\n` +
                         `รายการ:\n${itemsText}\n\n` +
-                        `ยอดรวม: ${total.toLocaleString()} บาท`,
+                        `ยอดรวม: ${total.toLocaleString()} บาท\n\n` +
+                        `⚠️ ยังไม่ได้รับเงิน — จะแจ้งอีกครั้งพร้อมสลิปเมื่อลูกค้าชำระเงินแล้ว`,
                 },
             ]);
         }
@@ -106,7 +99,12 @@ export default async function handler(req, res) {
         return res.status(200).json({
             orderId: orderRef.id,
             total,
-            promptpayTarget: shop.promptpayId || shop.phone, // ใช้สร้าง QR ฝั่ง client
+            paymentInfo: {
+                promptpayId: shop.promptpayId || null,
+                bankName: shop.bankName || null,
+                bankAccountNumber: shop.bankAccountNumber || null,
+                bankAccountName: shop.bankAccountName || null,
+            },
         });
     } catch (err) {
         console.error("createOrder error:", err);

@@ -53,7 +53,6 @@ export default function ShopDetailPage() {
     const isClosed = shop.isOpen === false;
     const cartItems = getCartItems(shopId);
     const total = getTotal(shopId);
-    const promptpayTarget = shop.promptpayId || shop.phone;
 
     function handleAddToCart(product) {
         addItem(shopId, product);
@@ -159,9 +158,9 @@ export default function ShopDetailPage() {
 
             {showCheckout && (
                 <CheckoutModal
+                    shopId={shopId}
                     items={cartItems}
                     total={total}
-                    promptpayTarget={promptpayTarget}
                     onConfirm={handleConfirmOrder}
                     onClose={() => setShowCheckout(false)}
                 />

@@ -8,6 +8,7 @@ import { createShopDraft, addProduct } from "../../firebase/firestore";
 import ImageUploadField from "../../components/form/ImageUploadField";
 import DynamicProductFieldList from "../../components/form/DynamicProductFieldList";
 import PasswordInput from "../../components/ui/PasswordInput";
+import { THAI_BANKS } from "../../utils/banks";
 
 const STEPS = ["บัญชีผู้ใช้", "ข้อมูลร้านค้า", "สินค้า"];
 
@@ -36,6 +37,9 @@ export default function SellerRegisterPage() {
             logoUrl: "",
             phone: "",
             promptpayId: "",
+            bankName: "",
+            bankAccountNumber: "",
+            bankAccountName: "",
             ig: "",
             category: "",
             products: [],
@@ -55,6 +59,24 @@ export default function SellerRegisterPage() {
             const confirmPassword = watch("confirmPassword");
             if (password !== confirmPassword) {
                 setSubmitError("รหัสผ่านทั้งสองช่องไม่ตรงกัน");
+                return;
+            }
+        }
+
+        if (step === 1) {
+            const hasPromptPay = !!watch("promptpayId")?.trim();
+            const bankName = watch("bankName");
+            const bankAccountNumber = watch("bankAccountNumber");
+            const bankAccountName = watch("bankAccountName");
+            const hasSomeBankField = bankName || bankAccountNumber || bankAccountName;
+            const hasCompleteBank = bankName && bankAccountNumber && bankAccountName;
+
+            if (!hasPromptPay && !hasCompleteBank) {
+                setSubmitError(
+                    hasSomeBankField
+                        ? "กรุณากรอกข้อมูลบัญชีธนาคารให้ครบทั้ง 3 ช่อง (ธนาคาร/เลขบัญชี/ชื่อบัญชี) หรือกรอกเลขพร้อมเพย์แทน"
+                        : "กรุณากรอกวิธีรับเงินอย่างน้อย 1 วิธี: เลขพร้อมเพย์ หรือ บัญชีธนาคาร (ครบทั้ง 3 ช่อง)"
+                );
                 return;
             }
         }
@@ -98,6 +120,9 @@ export default function SellerRegisterPage() {
                 logoUrl: data.logoUrl,
                 phone: data.phone,
                 promptpayId: data.promptpayId,
+                bankName: data.bankName,
+                bankAccountNumber: data.bankAccountNumber,
+                bankAccountName: data.bankAccountName,
                 ig: data.ig,
                 category: data.category,
             });
@@ -214,13 +239,48 @@ export default function SellerRegisterPage() {
                         />
                         {errors.phone && <p style={{ color: "var(--color-danger)" }}>กรุณากรอกเบอร์โทร</p>}
 
-                        <label htmlFor="reg-promptpay">เลขพร้อมเพย์ (ไม่บังคับ — ถ้าไม่กรอกจะใช้เบอร์โทรร้านแทน)</label>
+                        <hr style={{ borderColor: "var(--color-border)", margin: "16px 0" }} />
+                        <h4 style={{ marginBottom: 4 }}>วิธีรับเงิน (กรอกอย่างน้อย 1 วิธี)</h4>
+                        <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 10 }}>
+                            กรอกได้ทั้งคู่ถ้ามี — ลูกค้าจะเห็นทุกวิธีที่กรอกไว้ตอนจ่ายเงิน
+                        </p>
+
+                        <label htmlFor="reg-promptpay">เลขพร้อมเพย์ (ไม่บังคับ)</label>
                         <input
                             id="reg-promptpay"
-                            placeholder="เบอร์โทรหรือเลขบัตรประชาชนที่ผูกพร้อมเพย์"
+                            placeholder="เบอร์โทรหรือเลขบัตรประชาชนที่ผูกพร้อมเพย์แล้วเท่านั้น"
                             {...register("promptpayId")}
+                            style={{ display: "block", width: "100%", marginBottom: 12 }}
+                        />
+
+                        <label htmlFor="reg-bank-name">ธนาคาร (ไม่บังคับ)</label>
+                        <select
+                            id="reg-bank-name"
+                            {...register("bankName")}
+                            style={{ display: "block", width: "100%", marginBottom: 8 }}
+                        >
+                            <option value="">-- เลือกธนาคาร --</option>
+                            {THAI_BANKS.map((bank) => (
+                                <option key={bank} value={bank}>
+                                    {bank}
+                                </option>
+                            ))}
+                        </select>
+
+                        <label htmlFor="reg-bank-account-number">เลขบัญชี</label>
+                        <input
+                            id="reg-bank-account-number"
+                            {...register("bankAccountNumber")}
                             style={{ display: "block", width: "100%", marginBottom: 8 }}
                         />
+
+                        <label htmlFor="reg-bank-account-name">ชื่อบัญชี</label>
+                        <input
+                            id="reg-bank-account-name"
+                            {...register("bankAccountName")}
+                            style={{ display: "block", width: "100%", marginBottom: 8 }}
+                        />
+                        <hr style={{ borderColor: "var(--color-border)", margin: "16px 0" }} />
 
                         <label htmlFor="reg-ig">ไอจี (ไม่บังคับ)</label>
                         <input

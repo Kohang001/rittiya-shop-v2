@@ -1,4 +1,4 @@
-// src/pages/seller/SellerOrdersPage.jsx — อัปเดต: สถานะออเดอร์ (รอยืนยัน/กำลังทำ/เสร็จแล้ว/ยกเลิก)
+// src/pages/seller/SellerOrdersPage.jsx — อัปเดต: เพิ่มสถานะ slip_uploaded + โชว์รูปสลิป
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
@@ -6,16 +6,23 @@ import { getShopsByOwner, getOrdersByShop } from "../../firebase/firestore";
 import { formatCurrency } from "../../utils/formatCurrency";
 
 const ORDER_STATUS_LABEL = {
-    pending: { text: "รอยืนยัน", color: "var(--color-status-pending)", bg: "var(--color-status-pending-bg)" },
-    preparing: { text: "กำลังทำ", color: "var(--color-primary)", bg: "var(--color-primary-bg)" },
-    completed: { text: "เสร็จแล้ว", color: "var(--color-status-approved)", bg: "var(--color-status-approved-bg)" },
-    cancelled: { text: "ยกเลิก", color: "var(--color-status-rejected)", bg: "var(--color-status-rejected-bg)" },
+    pending: { text: "รอชำระเงิน", cls: "pending" },
+    slip_uploaded: { text: "ส่งสลิปแล้ว รอตรวจสอบ", cls: "pending" },
+    preparing: { text: "กำลังทำ", cls: "pending" },
+    completed: { text: "เสร็จแล้ว", cls: "approved" },
+    cancelled: { text: "ยกเลิก", cls: "rejected" },
 };
 
-// ปุ่ม "ขั้นตอนถัดไป" ที่ทำได้จากสถานะปัจจุบัน (ทำให้ seller กดตามลำดับที่ควรเป็น ไม่กดมั่ว)
 const NEXT_ACTIONS = {
-    pending: [{ status: "preparing", label: "รับออเดอร์ / เริ่มทำ" }, { status: "cancelled", label: "ยกเลิกออเดอร์" }],
-    preparing: [{ status: "completed", label: "ทำเสร็จแล้ว" }, { status: "cancelled", label: "ยกเลิกออเดอร์" }],
+    pending: [{ status: "cancelled", label: "ยกเลิกออเดอร์" }],
+    slip_uploaded: [
+        { status: "preparing", label: "ยืนยันได้รับเงินแล้ว / เริ่มทำ" },
+        { status: "cancelled", label: "สลิปไม่ถูกต้อง / ยกเลิก" },
+    ],
+    preparing: [
+        { status: "completed", label: "ทำเสร็จแล้ว" },
+        { status: "cancelled", label: "ยกเลิกออเดอร์" },
+    ],
     completed: [],
     cancelled: [],
 };
@@ -76,15 +83,14 @@ export default function SellerOrdersPage() {
             ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {orders.map((order) => {
-                        const statusInfo = ORDER_STATUS_LABEL[order.status || "pending"];
-                        const actions = NEXT_ACTIONS[order.status || "pending"];
+                        const statusKey = order.status || "pending";
+                        const statusInfo = ORDER_STATUS_LABEL[statusKey];
+                        const actions = NEXT_ACTIONS[statusKey];
                         return (
                             <div key={order.id} className="card" style={{ padding: 14 }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                     <strong>{order.customerName}</strong>
-                                    <span className={`status-badge status-badge--${order.status === "completed" ? "approved" : order.status === "cancelled" ? "rejected" : "pending"}`}>
-                                        {statusInfo.text}
-                                    </span>
+                                    <span className={`status-badge status-badge--${statusInfo.cls}`}>{statusInfo.text}</span>
                                 </div>
                                 <p style={{ margin: "4px 0", fontSize: 13, color: "var(--color-text-muted)" }}>
                                     ติดต่อ: {order.customerContact}
@@ -96,15 +102,22 @@ export default function SellerOrdersPage() {
                                         </li>
                                     ))}
                                 </ul>
+
+                                {order.slipUrl && (
+                                    <a href={order.slipUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", marginBottom: 8 }}>
+                                        <img
+                                            src={order.slipUrl}
+                                            alt="สลิปการโอนเงิน"
+                                            style={{ width: 90, height: 90, objectFit: "cover", borderRadius: 8, border: "1px solid var(--color-border)" }}
+                                        />
+                                    </a>
+                                )}
+
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                     <strong>{formatCurrency(order.total)}</strong>
                                     <div style={{ display: "flex", gap: 6 }}>
                                         {actions.map((action) => (
-                                            <button
-                                                key={action.status}
-                                                disabled={busyId === order.id}
-                                                onClick={() => handleStatusChange(order.id, action.status)}
-                                            >
+                                            <button key={action.status} disabled={busyId === order.id} onClick={() => handleStatusChange(order.id, action.status)}>
                                                 {action.label}
                                             </button>
                                         ))}
