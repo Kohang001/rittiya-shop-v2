@@ -1,7 +1,7 @@
 // src/pages/public/SearchPage.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { getAllApprovedProductsGlobal, getAllShopsForAdmin } from "../../firebase/firestore";
+import { getAllApprovedProductsGlobal, getApprovedShops } from "../../firebase/firestore";
 import { formatCurrency } from "../../utils/formatCurrency";
 import ProductCardSkeleton from "../../components/shop/ProductCardSkeleton";
 
@@ -14,15 +14,24 @@ export default function SearchPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        Promise.all([getAllApprovedProductsGlobal(), getAllShopsForAdmin()])
-            .then(([productsData, shopsData]) => {
+        async function loadData() {
+            try {
+                const productsData = await getAllApprovedProductsGlobal();
                 setProducts(productsData);
+            } catch (err) {
+                console.error("โหลดสินค้าไม่สำเร็จ:", err);
+            }
+            try {
+                const shopsData = await getApprovedShops();
                 const map = {};
                 shopsData.forEach((s) => (map[s.id] = s.name));
                 setShopNameById(map);
-            })
-            .catch((err) => console.error("โหลดสินค้าไม่สำเร็จ:", err))
-            .finally(() => setLoading(false));
+            } catch (err) {
+                console.error("โหลดชื่อร้านค้าไม่สำเร็จ:", err);
+            }
+            setLoading(false);
+        }
+        loadData();
     }, []);
 
     const query = searchParams.get("q") || "";
