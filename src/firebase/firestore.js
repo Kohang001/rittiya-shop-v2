@@ -128,16 +128,35 @@ export async function getAllPendingProductsGlobal() {
 /**
  * ใช้ในหน้าค้นหาสินค้าข้ามทุกร้าน — ดึงสินค้า approved ทั้งหมดมาก่อน แล้วกรองชื่อฝั่ง client
  * (โปรเจกต์ขนาดนี้ยังไม่จำเป็นต้องใช้ full-text search service แยกต่างหาก)
- * ต้องมี Firestore Index composite: collection group "products", field "status" Ascending
+ * ใช้วิธีดึงร้าน approved ก่อน แล้ว query สินค้าแต่ละร้าน — ไม่ต้องสร้าง collectionGroup index
  */
 export async function getAllApprovedProductsGlobal() {
-    const q = query(collectionGroup(db, "products"), where("status", "==", "approved"));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => ({
-        id: d.id,
-        shopId: d.ref.parent.parent.id,
-        ...d.data(),
-    }));
+    // 1) ดึงร้านค้าที่ approved ทั้งหมด
+    const shopsSnap = await getDocs(
+        query(collection(db, "shops"), where("status", "==", "approved"))
+    );
+    const shopIds = shopsSnap.docs.map((d) => d.id);
+
+    if (shopIds.length === 0) return [];
+
+    // 2) ดึงสินค้า approved ของแต่ละร้านพร้อมกัน
+    const results = await Promise.all(
+        shopIds.map(async (shopId) => {
+            const q2 = query(
+                collection(db, "shops", shopId, "products"),
+                where("status", "==", "approved")
+            );
+            const snap = await getDocs(q2);
+            return snap.docs.map((d) => ({
+                id: d.id,
+                shopId,
+                ...d.data(),
+            }));
+        })
+    );
+
+    // 3) รวม array ของทุกร้านเป็น array เดียว
+    return results.flat();
 }
 
 export async function getOrdersByShop(shopId) {
