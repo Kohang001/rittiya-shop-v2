@@ -58,7 +58,8 @@ export default async function handler(req, res) {
                         `💳 ลูกค้าส่งสลิปการโอนเงินแล้ว\n` +
                         `ผู้สั่ง: ${order.customerName}\n` +
                         `ยอด: ${order.total.toLocaleString()} บาท\n\n` +
-                        `กรุณาตรวจสอบสลิปด้านล่าง แล้วกดยืนยันในหน้า Dashboard ร้านค้า`,
+                        `กรุณาตรวจสอบสลิปด้านล่าง แล้วกดยืนยันในหน้า Dashboard ร้านค้า\n` +
+                        `https://rittiya-shop-v2.vercel.app/seller/dashboard`,
                 },
                 {
                     type: "image",

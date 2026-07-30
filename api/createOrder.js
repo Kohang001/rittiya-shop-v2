@@ -91,7 +91,9 @@ export default async function handler(req, res) {
                         `ติดต่อ: ${customerContact}\n\n` +
                         `รายการ:\n${itemsText}\n\n` +
                         `ยอดรวม: ${total.toLocaleString()} บาท\n\n` +
-                        `⚠️ ยังไม่ได้รับเงิน — จะแจ้งอีกครั้งพร้อมสลิปเมื่อลูกค้าชำระเงินแล้ว`,
+                        `⚠️ ยังไม่ได้รับเงิน — จะแจ้งอีกครั้งพร้อมสลิปเมื่อลูกค้าชำระเงินแล้ว\n` +
+                        `กรุณาตรวจสอบสลิปด้านล่าง แล้วกดยืนยันในหน้า Dashboard ร้านค้า\n` +
+                        `https://rittiya-shop-v2.vercel.app/seller/dashboard`,
                 },
             ]);
         }
