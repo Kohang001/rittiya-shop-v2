@@ -7,6 +7,7 @@ import { validateImageFile } from "../../utils/validators";
 export default function CheckoutModal({ shopId, items, total, onConfirm, onClose }) {
     const [customerName, setCustomerName] = useState("");
     const [customerContact, setCustomerContact] = useState("");
+    const [consentChecked, setConsentChecked] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [successData, setSuccessData] = useState(null);
@@ -20,6 +21,10 @@ export default function CheckoutModal({ shopId, items, total, onConfirm, onClose
         e.preventDefault();
         if (!customerName.trim() || !customerContact.trim()) {
             setError("กรุณากรอกชื่อและช่องทางติดต่อให้ครบ");
+            return;
+        }
+        if (!consentChecked) {
+            setError("กรุณายืนยันความยินยอมในการใช้ข้อมูลก่อนสั่งซื้อ");
             return;
         }
         setError("");
@@ -202,6 +207,18 @@ export default function CheckoutModal({ shopId, items, total, onConfirm, onClose
                         />
 
                         {error && <p style={{ color: "var(--color-danger)", fontSize: 13, marginBottom: 10 }}>{error}</p>}
+
+                        <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, fontWeight: 400, marginBottom: 12 }}>
+                            <input
+                                type="checkbox"
+                                checked={consentChecked}
+                                onChange={(e) => setConsentChecked(e.target.checked)}
+                                style={{ marginTop: 2 }}
+                            />
+                            <span>
+                                ฉันยินยอมให้ร้านค้าเก็บและใช้ชื่อ-เบอร์ติดต่อนี้ เพื่อการติดต่อเกี่ยวกับคำสั่งซื้อนี้เท่านั้น
+                            </span>
+                        </label>
 
                         <div style={{ display: "flex", gap: 8 }}>
                             <button type="button" onClick={onClose} disabled={submitting} style={{ flex: 1 }}>

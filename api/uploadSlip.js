@@ -44,6 +44,11 @@ export default async function handler(req, res) {
         const shop = shopSnap.data();
         const order = orderSnap.data();
 
+        // ป้องกันการอัปสลิปซ้ำหรือแก้ไขออเดอร์ที่ผ่านการดำเนินการไปแล้ว
+        if (order.status !== "pending") {
+            return res.status(409).json({ error: "ออเดอร์นี้ไม่สามารถอัปโหลดสลิปได้แล้ว (มีการดำเนินการไปแล้ว)" });
+        }
+
         await orderRef.update({
             slipUrl,
             status: "slip_uploaded",
