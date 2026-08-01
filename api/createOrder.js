@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { shopId, items, customerName, customerContact } = req.body;
+        const { shopId, items, customerName, customerContact, slipUrl } = req.body;
 
         if (!shopId || typeof shopId !== "string") {
             return res.status(400).json({ error: "ไม่พบร้านค้า" });
@@ -35,6 +35,9 @@ export default async function handler(req, res) {
         }
         if (!customerName || !customerContact) {
             return res.status(400).json({ error: "กรุณากรอกชื่อและช่องทางติดต่อ" });
+        }
+        if (!slipUrl || !slipUrl.startsWith("https://res.cloudinary.com/")) {
+            return res.status(400).json({ error: "กรุณาแนบสลิปการโอนเงินก่อนสั่งซื้อ" });
         }
 
         const shopRef = adminDb.collection("shops").doc(shopId);
@@ -76,7 +79,9 @@ export default async function handler(req, res) {
             customerContact: String(customerContact).slice(0, 100),
             items: validatedItems,
             total,
-            status: "pending", // pending(รอชำระเงิน) -> slip_uploaded -> preparing -> completed / cancelled
+            status: "slip_uploaded", // มีสลิปตั้งแต่สร้าง เข้าคิวรอร้านตรวจสอบทันที
+            slipUrl,
+            slipUploadedAt: new Date(),
             createdAt: new Date(),
         });
 
@@ -86,14 +91,18 @@ export default async function handler(req, res) {
                 {
                     type: "text",
                     text:
-                        `🕐 มีคำสั่งซื้อใหม่ — รอลูกค้าชำระเงิน\n` +
+                        `💳 มีคำสั่งซื้อใหม่ พร้อมสลิปการโอนเงิน\n` +
                         `ผู้สั่ง: ${customerName}\n` +
                         `ติดต่อ: ${customerContact}\n\n` +
                         `รายการ:\n${itemsText}\n\n` +
                         `ยอดรวม: ${total.toLocaleString()} บาท\n\n` +
-                        `⚠️ ยังไม่ได้รับเงิน — จะแจ้งอีกครั้งพร้อมสลิปเมื่อลูกค้าชำระเงินแล้ว\n` +
-                        `กรุณาตรวจสอบสลิปด้านล่าง แล้วกดยืนยันในหน้า Dashboard ร้านค้า\n` +
+                        `กรุณาตรวจสอบสลิปด้านล่าง แล้วกดยืนยันในหน้า Dashboard\n` +
                         `https://rittiya-shop-v2.vercel.app/seller/dashboard`,
+                },
+                {
+                    type: "image",
+                    originalContentUrl: slipUrl,
+                    previewImageUrl: slipUrl,
                 },
             ]);
         }

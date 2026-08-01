@@ -51,6 +51,12 @@ export default function ShopDetailPage() {
     if (!shop) return <p style={{ textAlign: "center", marginTop: 40 }}>ไม่พบร้านค้านี้</p>;
 
     const isClosed = shop.isOpen === false;
+    const paymentInfo = {
+        promptpayId: shop.promptpayId || null,
+        bankName: shop.bankName || null,
+        bankAccountNumber: shop.bankAccountNumber || null,
+        bankAccountName: shop.bankAccountName || null,
+    };
     const cartItems = getCartItems(shopId);
     const total = getTotal(shopId);
 
@@ -59,7 +65,7 @@ export default function ShopDetailPage() {
         showToast(`เพิ่ม "${product.name}" ลงตะกร้าแล้ว`, "success");
     }
 
-    async function handleConfirmOrder({ customerName, customerContact }) {
+    async function handleConfirmOrder({ customerName, customerContact, slipUrl }) {
         const response = await fetch("/api/createOrder", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -68,6 +74,7 @@ export default function ShopDetailPage() {
                 items: cartItems.map(({ product, qty }) => ({ productId: product.id, qty })),
                 customerName,
                 customerContact,
+                slipUrl,
             }),
         });
 
@@ -161,6 +168,7 @@ export default function ShopDetailPage() {
                     shopId={shopId}
                     items={cartItems}
                     total={total}
+                    paymentInfo={paymentInfo}
                     onConfirm={handleConfirmOrder}
                     onClose={() => setShowCheckout(false)}
                 />
