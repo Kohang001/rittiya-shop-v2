@@ -154,7 +154,8 @@ export default async function handler(req, res) {
                             `ติดต่อ: ${customerContact}\n\n` +
                             `รายการ:\n${itemsText}\n\n` +
                             `ยอดรวม: ${total.toLocaleString()} บาท` +
-                            (slipUrl ? `\n\nกรุณาตรวจสอบสลิปด้านล่าง แล้วกดยืนยันในหน้า Dashboard` : ""),
+                            (slipUrl ? `\n\nกรุณาตรวจสอบสลิปด้านล่าง แล้วกดยืนยันในหน้า Dashboard` : "") +
+                            `https://rittiya-shop-v2.vercel.app/seller/dashboard`,
                     },
                 ];
                 if (slipUrl) {
