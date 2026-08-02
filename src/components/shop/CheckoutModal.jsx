@@ -9,6 +9,7 @@ import { validateImageFile } from "../../utils/validators";
  *   ส่งมาจาก shop ที่โหลดไว้แล้วในหน้า ShopDetailPage ไม่ต้องรอ API
  */
 export default function CheckoutModal({ shopId, items, total, paymentInfo, onConfirm, onClose }) {
+    const [clientOrderId] = useState(() => crypto.randomUUID()); // สร้างครั้งเดียวตอนเปิด modal ใช้กันซ้ำถ้ากดยืนยันซ้ำ/retry
     const [step, setStep] = useState(0); // 0 = กรอกข้อมูล, 1 = จ่ายเงิน+แนบสลิป, 2 = สำเร็จ
     const [customerName, setCustomerName] = useState("");
     const [customerContact, setCustomerContact] = useState("");
@@ -75,7 +76,7 @@ export default function CheckoutModal({ shopId, items, total, paymentInfo, onCon
         setSubmitting(true);
         setError("");
         try {
-            const result = await onConfirm({ customerName, customerContact, slipUrl });
+            const result = await onConfirm({ customerName, customerContact, slipUrl, clientOrderId });
             setSuccessData(result);
             setStep(2);
         } catch (err) {
