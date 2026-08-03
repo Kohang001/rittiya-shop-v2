@@ -33,7 +33,7 @@ export default function SellerFeedPostPage() {
         setSubmitting(true);
         try {
             await createFeedPost({ shopId: shop.id, title, content, imageUrl });
-            showToast("เพิ่มประกาศสำเร็จ รอ Admin ตรวจสอบก่อนขึ้นหน้า Feed", "success");
+            showToast("เผยแพร่ประกาศสำเร็จ ขึ้นหน้า Feed ทันที", "success");
             navigate("/seller/dashboard");
         } catch (err) {
             console.error(err);
@@ -72,7 +72,7 @@ export default function SellerFeedPostPage() {
                 <ImageUploadField label="รูปประกอบ (ไม่บังคับ)" value={imageUrl} onChange={setImageUrl} />
 
                 <p style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
-                    ประกาศนี้จะรอ Admin ตรวจสอบก่อนขึ้นแสดงในหน้า Feed สาธารณะ
+                    ประกาศนี้จะขึ้นหน้า Feed สาธารณะทันที (Admin สามารถซ่อนได้ทีหลังถ้ามีเนื้อหาไม่เหมาะสม)
                 </p>
 
                 <button type="submit" disabled={submitting}>

@@ -128,35 +128,16 @@ export async function getAllPendingProductsGlobal() {
 /**
  * ใช้ในหน้าค้นหาสินค้าข้ามทุกร้าน — ดึงสินค้า approved ทั้งหมดมาก่อน แล้วกรองชื่อฝั่ง client
  * (โปรเจกต์ขนาดนี้ยังไม่จำเป็นต้องใช้ full-text search service แยกต่างหาก)
- * ใช้วิธีดึงร้าน approved ก่อน แล้ว query สินค้าแต่ละร้าน — ไม่ต้องสร้าง collectionGroup index
+ * ต้องมี Firestore Index composite: collection group "products", field "status" Ascending
  */
 export async function getAllApprovedProductsGlobal() {
-    // 1) ดึงร้านค้าที่ approved ทั้งหมด
-    const shopsSnap = await getDocs(
-        query(collection(db, "shops"), where("status", "==", "approved"))
-    );
-    const shopIds = shopsSnap.docs.map((d) => d.id);
-
-    if (shopIds.length === 0) return [];
-
-    // 2) ดึงสินค้า approved ของแต่ละร้านพร้อมกัน
-    const results = await Promise.all(
-        shopIds.map(async (shopId) => {
-            const q2 = query(
-                collection(db, "shops", shopId, "products"),
-                where("status", "==", "approved")
-            );
-            const snap = await getDocs(q2);
-            return snap.docs.map((d) => ({
-                id: d.id,
-                shopId,
-                ...d.data(),
-            }));
-        })
-    );
-
-    // 3) รวม array ของทุกร้านเป็น array เดียว
-    return results.flat();
+    const q = query(collectionGroup(db, "products"), where("status", "==", "approved"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => ({
+        id: d.id,
+        shopId: d.ref.parent.parent.id,
+        ...d.data(),
+    }));
 }
 
 export async function getOrdersByShop(shopId) {
@@ -196,10 +177,11 @@ export async function getApprovedFeedPosts() {
     return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+/** สร้างประกาศใหม่ — ขึ้นทันทีถ้าร้านผ่านการอนุมัติแล้ว (เชื่อร้านที่ผ่านการตรวจสอบครั้งแรกตอนสมัคร) */
 export async function createFeedPost(postData) {
     const docRef = await addDoc(collection(db, "feedPosts"), {
         ...postData,
-        status: "pending",
+        status: "approved",
         createdAt: serverTimestamp(),
     });
     return docRef.id;
@@ -216,4 +198,9 @@ export async function getAllFeedPostsForAdmin() {
     const q = query(collection(db, "feedPosts"), orderBy("createdAt", "desc"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/** Admin ใช้ซ่อนโพสต์ที่ไม่เหมาะสม (เซฟตี้เน็ตตรวจสอบภายหลัง เพราะประกาศขึ้นทันทีไม่ผ่านอนุมัติก่อน) */
+export async function hideFeedPost(postId) {
+    await updateDoc(doc(db, "feedPosts", postId), { status: "rejected" });
 }

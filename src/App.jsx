@@ -22,6 +22,7 @@ import AdminShopsPage from "./pages/admin/AdminShopsPage";
 import AdminShopDetailPage from "./pages/admin/AdminShopDetailPage";
 import AdminOrdersPage from "./pages/admin/AdminOrdersPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
+import AdminFeedPage from "./pages/admin/AdminFeedPage";
 
 function App() {
     return (
@@ -111,6 +112,14 @@ function App() {
                         element={
                             <AdminRoute>
                                 <AdminProductsPage />
+                            </AdminRoute>
+                        }
+                    />
+                    <Route
+                        path="/admin/feed"
+                        element={
+                            <AdminRoute>
+                                <AdminFeedPage />
                             </AdminRoute>
                         }
                     />

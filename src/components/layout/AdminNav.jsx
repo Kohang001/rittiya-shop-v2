@@ -6,6 +6,7 @@ const LINKS = [
     { to: "/admin/shops", label: "ร้านค้า" },
     { to: "/admin/products", label: "สินค้ารอตรวจสอบ" },
     { to: "/admin/orders", label: "ออเดอร์ทั้งหมด" },
+    { to: "/admin/feed", label: "ประกาศ" },
 ];
 
 export default function AdminNav() {

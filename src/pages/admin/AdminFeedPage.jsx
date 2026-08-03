@@ -1,0 +1,91 @@
+// src/pages/admin/AdminFeedPage.jsx
+import { useEffect, useState } from "react";
+import { getAllFeedPostsForAdmin, hideFeedPost } from "../../firebase/firestore";
+import { useToast } from "../../context/ToastContext";
+import AdminNav from "../../components/layout/AdminNav";
+
+export default function AdminFeedPage() {
+    const { showToast } = useToast();
+    const [posts, setPosts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [busyId, setBusyId] = useState(null);
+
+    useEffect(() => {
+        load();
+    }, []);
+
+    async function load() {
+        setLoading(true);
+        const data = await getAllFeedPostsForAdmin();
+        setPosts(data);
+        setLoading(false);
+    }
+
+    async function handleHide(postId) {
+        if (!confirm("ซ่อนประกาศนี้ออกจากหน้า Feed สาธารณะ?")) return;
+        setBusyId(postId);
+        try {
+            await hideFeedPost(postId);
+            showToast("ซ่อนประกาศแล้ว", "success");
+            await load();
+        } catch (err) {
+            showToast("ซ่อนประกาศไม่สำเร็จ", "error");
+        } finally {
+            setBusyId(null);
+        }
+    }
+
+    return (
+        <div>
+            <AdminNav />
+            <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 16px" }}>
+                <h2>ประกาศทั้งหมด</h2>
+                <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 20 }}>
+                    ประกาศขึ้นหน้า Feed ทันทีที่สร้างโดยไม่ต้องรออนุมัติ — หน้านี้ใช้ตรวจสอบย้อนหลังและซ่อนโพสต์ที่ไม่เหมาะสม
+                </p>
+
+                {loading ? (
+                    <p style={{ textAlign: "center" }}>กำลังโหลด...</p>
+                ) : posts.length === 0 ? (
+                    <p style={{ color: "var(--color-text-muted)" }}>ยังไม่มีประกาศ</p>
+                ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {posts.map((post) => (
+                            <div key={post.id} className="card" style={{ padding: 14 }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                                    <div>
+                                        <strong>{post.title}</strong>
+                                        <p style={{ margin: "4px 0", fontSize: 13, color: "var(--color-text-muted)", whiteSpace: "pre-wrap" }}>
+                                            {post.content}
+                                        </p>
+                                    </div>
+                                    <span
+                                        className={`status-badge status-badge--${post.status === "approved" ? "approved" : "rejected"}`}
+                                    >
+                                        {post.status === "approved" ? "แสดงอยู่" : "ถูกซ่อน"}
+                                    </span>
+                                </div>
+                                {post.imageUrl && (
+                                    <img
+                                        src={post.imageUrl}
+                                        alt={post.title}
+                                        style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8, marginTop: 8 }}
+                                    />
+                                )}
+                                {post.status === "approved" && (
+                                    <button
+                                        disabled={busyId === post.id}
+                                        onClick={() => handleHide(post.id)}
+                                        style={{ marginTop: 8 }}
+                                    >
+                                        ซ่อนโพสต์นี้
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

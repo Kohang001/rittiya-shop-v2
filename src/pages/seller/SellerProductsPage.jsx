@@ -82,12 +82,17 @@ export default function SellerProductsPage() {
                     price: parseFloat(form.price) || 0,
                     imageUrl: form.imageUrl,
                 };
-                const willBecomePending = currentProduct?.status === "approved";
-                if (willBecomePending) {
+                // เช็คว่าแก้แค่ราคา (เนื้อหาไม่เปลี่ยน) หรือแก้เนื้อหาด้วย — ราคาอย่างเดียวไม่ต้องรออนุมัติใหม่
+                const contentChanged =
+                    currentProduct?.name !== updates.name ||
+                    (currentProduct?.desc || "") !== updates.desc ||
+                    (currentProduct?.imageUrl || "") !== updates.imageUrl;
+
+                if (currentProduct?.status === "approved" && contentChanged) {
                     updates.status = "pending";
                 }
                 await updateProduct(shop.id, editingId, updates);
-                if (willBecomePending) {
+                if (currentProduct?.status === "approved" && contentChanged) {
                     notifyAdminNewProduct(form.name);
                 }
             } else {
@@ -133,7 +138,7 @@ export default function SellerProductsPage() {
 
                 {editingProduct?.status === "approved" && (
                     <p style={{ fontSize: 12, color: "var(--color-status-pending)", background: "var(--color-status-pending-bg)", padding: 8, borderRadius: 6 }}>
-                        ⚠️ สินค้านี้อนุมัติแล้ว หากบันทึกการแก้ไข จะต้องรอ Admin ตรวจสอบใหม่อีกครั้ง
+                        ⚠️ สินค้านี้อนุมัติแล้ว — แก้แค่ราคาไม่ต้องรออนุมัติใหม่ แต่ถ้าแก้ชื่อ/รายละเอียด/รูป จะต้องรอ Admin ตรวจสอบใหม่อีกครั้ง
                     </p>
                 )}
 
