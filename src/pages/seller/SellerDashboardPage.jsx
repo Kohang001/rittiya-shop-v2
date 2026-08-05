@@ -124,6 +124,9 @@ export default function SellerDashboardPage() {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 24 }}>
+                <Link to="/seller/shop/edit" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Icon name="settings" size={20} /> แก้ไขข้อมูลร้าน
+                </Link>
                 <Link to="/seller/products" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Icon name="box" size={20} /> จัดการสินค้า
                 </Link>

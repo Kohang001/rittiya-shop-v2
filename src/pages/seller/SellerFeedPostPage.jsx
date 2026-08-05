@@ -32,7 +32,7 @@ export default function SellerFeedPostPage() {
 
         setSubmitting(true);
         try {
-            await createFeedPost({ shopId: shop.id, title, content, imageUrl });
+            await createFeedPost({ shopId: shop.id, title, content, imageUrl, shopName: shop.name, shopLogoUrl: shop.logoUrl || "" });
             showToast("เผยแพร่ประกาศสำเร็จ ขึ้นหน้า Feed ทันที", "success");
             navigate("/seller/dashboard");
         } catch (err) {

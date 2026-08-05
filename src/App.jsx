@@ -17,6 +17,7 @@ import SellerProductsPage from "./pages/seller/SellerProductsPage";
 import SellerOrdersPage from "./pages/seller/SellerOrdersPage";
 import SellerLineLinkPage from "./pages/seller/SellerLineLinkPage";
 import SellerFeedPostPage from "./pages/seller/SellerFeedPostPage";
+import SellerShopEditPage from "./pages/seller/SellerShopEditPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import AdminShopsPage from "./pages/admin/AdminShopsPage";
 import AdminShopDetailPage from "./pages/admin/AdminShopDetailPage";
@@ -77,6 +78,14 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <SellerFeedPostPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/seller/shop/edit"
+                        element={
+                            <ProtectedRoute>
+                                <SellerShopEditPage />
                             </ProtectedRoute>
                         }
                     />

@@ -1,0 +1,147 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function isOwner(ownerUid) {
+      return isSignedIn() && request.auth.uid == ownerUid;
+    }
+
+    function isValidProductData(data) {
+      return data.keys().hasOnly([
+              "name", "price", "desc", "imageUrl", "status",
+              "createdAt", "reviewedBy", "reviewedAt", "rejectReason"
+            ])
+          && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+          && data.price is number && data.price >= 0 && data.price <= 1000000
+          && (!("desc" in data) || (data.desc is string && data.desc.size() <= 2000))
+          && (!("imageUrl" in data) || (data.imageUrl is string && data.imageUrl.size() <= 500));
+    }
+
+    function isValidShopData(data) {
+      return data.keys().hasOnly([
+              "ownerUid", "name", "slogan", "logoUrl", "phone", "ig", "category",
+              "status", "isOpen", "lineUserId", "lineLinkCode", "createdAt",
+              "promptpayId", "bankName", "bankAccountNumber", "bankAccountName",
+              "reviewedBy", "reviewedAt", "rejectReason"
+            ])
+          && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+          && data.phone is string && data.phone.size() > 0 && data.phone.size() <= 20
+          && (!("slogan" in data) || (data.slogan is string && data.slogan.size() <= 200))
+          && (!("logoUrl" in data) || (data.logoUrl is string && data.logoUrl.size() <= 500))
+          && (!("ig" in data) || (data.ig is string && data.ig.size() <= 60))
+          && (!("category" in data) || (data.category is string && data.category.size() <= 60))
+          && (!("promptpayId" in data) || (data.promptpayId is string && data.promptpayId.size() <= 30))
+          && (!("bankName" in data) || (data.bankName is string && data.bankName.size() <= 60))
+          && (!("bankAccountNumber" in data) || (data.bankAccountNumber is string && data.bankAccountNumber.size() <= 30))
+          && (!("bankAccountName" in data) || (data.bankAccountName is string && data.bankAccountName.size() <= 100));
+    }
+
+    function isValidOwnerStatusChange(oldStatus, newStatus) {
+      return newStatus == oldStatus || newStatus == "pending";
+    }
+
+    // เช็คว่าฟิลด์ที่ "มีผลต่อเนื้อหาที่ต้องตรวจสอบ" เปลี่ยนไปไหม (ชื่อ/รายละเอียด/รูป)
+    // ถ้าไม่เปลี่ยนเลย แปลว่าแก้แค่ราคา -> ไม่ต้องรออนุมัติใหม่
+    function isProductContentUnchanged(before, after) {
+      return before.name == after.name
+          && (("desc" in before) ? before.desc : null) == (("desc" in after) ? after.desc : null)
+          && (("imageUrl" in before) ? before.imageUrl : null) == (("imageUrl" in after) ? after.imageUrl : null);
+    }
+
+    match /shops/{shopId} {
+      allow read: if resource.data.status == "approved"
+                  || isOwner(resource.data.ownerUid)
+                  || isAdmin();
+
+      allow create: if isSignedIn()
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.status == "pending"
+                    && isValidShopData(request.resource.data);
+
+      allow update: if isAdmin()
+                    || (isOwner(resource.data.ownerUid)
+                        && request.resource.data.ownerUid == resource.data.ownerUid
+                        && isValidShopData(request.resource.data)
+                        && isValidOwnerStatusChange(resource.data.status, request.resource.data.status));
+
+      allow delete: if isAdmin();
+
+      match /products/{productId} {
+        allow read: if get(/databases/$(database)/documents/shops/$(shopId)).data.status == "approved"
+                    || isOwner(get(/databases/$(database)/documents/shops/$(shopId)).data.ownerUid)
+                    || isAdmin();
+
+        allow create: if isOwner(get(/databases/$(database)/documents/shops/$(shopId)).data.ownerUid)
+                      && request.resource.data.status == "pending"
+                      && isValidProductData(request.resource.data);
+
+        // เจ้าของร้านแก้ได้ 2 แบบ:
+        // 1) แก้แค่ราคา (เนื้อหาไม่เปลี่ยน) -> สถานะคงเดิมได้ ไม่ต้องรออนุมัติใหม่
+        // 2) แก้ชื่อ/รายละเอียด/รูป -> บังคับสถานะต้องกลับเป็น pending เท่านั้น ห้ามคงเป็น approved
+        allow update: if isAdmin()
+                      || (isOwner(get(/databases/$(database)/documents/shops/$(shopId)).data.ownerUid)
+                          && isValidProductData(request.resource.data)
+                          && (
+                               (isProductContentUnchanged(resource.data, request.resource.data)
+                                && request.resource.data.status == resource.data.status)
+                               || (!isProductContentUnchanged(resource.data, request.resource.data)
+                                   && request.resource.data.status == "pending")
+                             ));
+
+        allow delete: if isOwner(get(/databases/$(database)/documents/shops/$(shopId)).data.ownerUid)
+                      || isAdmin();
+      }
+
+      match /orders/{orderId} {
+        allow read: if isOwner(get(/databases/$(database)/documents/shops/$(shopId)).data.ownerUid)
+                    || isAdmin();
+        allow write: if false;
+      }
+    }
+
+    // ---------- feedPosts/{postId} ----------
+    // เชื่อร้านที่ approved แล้ว: ประกาศขึ้นทันทีไม่ต้องรอ Admin อนุมัติ
+    // Admin ยังคงมีสิทธิ์ "ซ่อน" (เปลี่ยนเป็น rejected) ได้เสมอ เป็นเซฟตี้เน็ตตรวจสอบภายหลัง
+    match /feedPosts/{postId} {
+      allow read: if resource.data.status == "approved"
+                  || isOwner(get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.ownerUid)
+                  || isAdmin();
+
+      allow create: if isOwner(get(/databases/$(database)/documents/shops/$(request.resource.data.shopId)).data.ownerUid)
+                    && get(/databases/$(database)/documents/shops/$(request.resource.data.shopId)).data.status == "approved"
+                    && request.resource.data.status == "approved"
+                    && request.resource.data.keys().hasOnly(["shopId", "title", "content", "imageUrl", "status", "createdAt", "shopName", "shopLogoUrl", "reviewedBy", "reviewedAt", "rejectReason"])
+                    && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 100
+                    && request.resource.data.content is string && request.resource.data.content.size() > 0 && request.resource.data.content.size() <= 5000
+                    && (!("imageUrl" in request.resource.data) || (request.resource.data.imageUrl is string && request.resource.data.imageUrl.size() <= 500))
+                    && (!("shopName" in request.resource.data) || (request.resource.data.shopName is string && request.resource.data.shopName.size() <= 100))
+                    && (!("shopLogoUrl" in request.resource.data) || (request.resource.data.shopLogoUrl is string && request.resource.data.shopLogoUrl.size() <= 500));
+
+      // Admin ซ่อนโพสต์ได้เสมอ (approved -> rejected) เจ้าของร้านแก้เนื้อหาตัวเองได้แต่ไม่ห้ามตั้งเป็น approved เอง (เพราะ approve ตั้งแต่สร้างอยู่แล้ว)
+      allow update: if isAdmin()
+                    || isOwner(get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.ownerUid);
+
+      allow delete: if isOwner(get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.ownerUid)
+                    || isAdmin();
+    }
+
+    match /config/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /admins/{uid} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+  }
+}

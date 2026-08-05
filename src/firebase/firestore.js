@@ -177,7 +177,8 @@ export async function getApprovedFeedPosts() {
     return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
-/** สร้างประกาศใหม่ — ขึ้นทันทีถ้าร้านผ่านการอนุมัติแล้ว (เชื่อร้านที่ผ่านการตรวจสอบครั้งแรกตอนสมัคร) */
+/** สร้างประกาศใหม่ — ขึ้นทันทีถ้าร้านผ่านการอนุมัติแล้ว (เชื่อร้านที่ผ่านการตรวจสอบครั้งแรกตอนสมัคร)
+ *  postData ต้องมี shopId, title, content, imageUrl, shopName, shopLogoUrl */
 export async function createFeedPost(postData) {
     const docRef = await addDoc(collection(db, "feedPosts"), {
         ...postData,
