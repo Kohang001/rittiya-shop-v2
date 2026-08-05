@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { logoutUser } from "../../firebase/auth";
 import { getShopsByOwner, getOrdersByShop, setShopOpenStatus } from "../../firebase/firestore";
+import PageSkeleton from "../../components/ui/PageSkeleton";
 import Icon from "../../components/ui/Icon";
 
 const STATUS_LABEL = {
@@ -55,13 +56,15 @@ export default function SellerDashboardPage() {
         }
     }
 
-    if (loading) return <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>;
+    if (loading) return <PageSkeleton lines={5} />;
 
     if (!shop) {
         return (
             <div style={{ maxWidth: 500, margin: "40px auto", textAlign: "center" }}>
                 <p>ยังไม่มีร้านค้าผูกกับบัญชีนี้</p>
-                <Link to="/seller/register">สมัครเปิดร้าน</Link>
+                <Link to="/seller/register" className="nav-link-btn" style={{ justifyContent: "center" }}>
+                    สมัครเปิดร้าน
+                </Link>
             </div>
         );
     }
@@ -123,20 +126,20 @@ export default function SellerDashboardPage() {
                 </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 24 }}>
-                <Link to="/seller/shop/edit" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
+                <Link to="/seller/shop/edit" className="nav-link-btn">
                     <Icon name="settings" size={20} /> แก้ไขข้อมูลร้าน
                 </Link>
-                <Link to="/seller/products" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Link to="/seller/products" className="nav-link-btn">
                     <Icon name="box" size={20} /> จัดการสินค้า
                 </Link>
-                <Link to="/seller/orders" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Link to="/seller/orders" className="nav-link-btn">
                     <Icon name="receipt" size={20} /> ดูออเดอร์
                 </Link>
-                <Link to="/seller/line-link" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Link to="/seller/line-link" className="nav-link-btn">
                     <Icon name="message-circle" size={20} /> เชื่อมต่อ LINE
                 </Link>
-                <Link to="/seller/feed/new" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Link to="/seller/feed/new" className="nav-link-btn">
                     <Icon name="megaphone" size={20} /> เพิ่มประกาศ
                 </Link>
             </div>

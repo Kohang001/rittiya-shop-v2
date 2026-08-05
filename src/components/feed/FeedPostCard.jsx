@@ -4,8 +4,8 @@ import { Link } from "react-router-dom";
 export default function FeedPostCard({ post, onDelete, deleting }) {
     return (
         <div style={{ border: "1px solid #ddd", borderRadius: 12, overflow: "hidden", transition: "box-shadow 0.2s" }}
-             onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.10)"}
-             onMouseLeave={(e) => e.currentTarget.style.boxShadow = "none"}
+            onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.10)"}
+            onMouseLeave={(e) => e.currentTarget.style.boxShadow = "none"}
         >
             <Link
                 to={`/shop/${post.shopId}`}
@@ -34,7 +34,7 @@ export default function FeedPostCard({ post, onDelete, deleting }) {
                                 display: "flex", alignItems: "center", justifyContent: "center",
                                 fontSize: 12, color: "var(--color-text-muted, #94a3b8)"
                             }}>
-                                🏪
+                                ร้าน:
                             </div>
                         )}
                         <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-primary, #6366f1)" }}>

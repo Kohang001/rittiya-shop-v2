@@ -1,6 +1,6 @@
-// src/components/layout/AdminRoute.jsx
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import PageSkeleton from "../ui/PageSkeleton";
 
 /**
  * ครอบหน้า Admin ทั้งหมด — เช็ค custom claim "admin" เท่านั้น (ไม่ใช่แค่ login ธรรมดา)
@@ -10,7 +10,7 @@ export default function AdminRoute({ children }) {
     const { user, isAdmin, loading } = useAuth();
 
     if (loading) {
-        return <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>;
+        return <PageSkeleton lines={4} />;
     }
 
     if (!user || !isAdmin) {

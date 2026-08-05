@@ -8,6 +8,8 @@ import ImageUploadField from "../../components/form/ImageUploadField";
 import Icon from "../../components/ui/Icon";
 import { THAI_BANKS } from "../../utils/banks";
 
+import PageSkeleton from "../../components/ui/PageSkeleton";
+
 export default function SellerShopEditPage() {
     const { user } = useAuth();
     const { showToast } = useToast();
@@ -100,7 +102,7 @@ export default function SellerShopEditPage() {
         }
     }
 
-    if (loading) return <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>;
+    if (loading) return <PageSkeleton lines={6} />;
     if (!shop) return <p style={{ textAlign: "center", marginTop: 40 }}>ไม่พบร้านค้า</p>;
 
     return (

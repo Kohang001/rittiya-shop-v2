@@ -6,6 +6,7 @@ import { useToast } from "../../context/ToastContext";
 import { getAllPendingProductsGlobal, getAllShopsForAdmin } from "../../firebase/firestore";
 import Breadcrumb from "../../components/ui/Breadcrumb";
 import AdminNav from "../../components/layout/AdminNav";
+import PageSkeleton from "../../components/ui/PageSkeleton";
 import { formatCurrency } from "../../utils/formatCurrency";
 
 export default function AdminProductsPage() {
@@ -66,7 +67,7 @@ export default function AdminProductsPage() {
                 <h2>สินค้ารอตรวจสอบทั้งหมด ({products.length})</h2>
 
                 {loading ? (
-                    <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>
+                    <PageSkeleton lines={5} />
                 ) : products.length === 0 ? (
                     <p style={{ color: "var(--color-text-muted)" }}>ไม่มีสินค้ารอตรวจสอบ</p>
                 ) : (

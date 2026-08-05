@@ -4,6 +4,8 @@ import { getApprovedFeedPosts, getShopsByOwner, deleteFeedPost } from "../../fir
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import FeedPostCard from "../../components/feed/FeedPostCard";
+import FeedPostCardSkeleton from "../../components/feed/FeedPostCardSkeleton";
+import ConfirmModal from "../../components/ui/ConfirmModal";
 
 export default function FeedPage() {
     const { user } = useAuth();
@@ -12,6 +14,7 @@ export default function FeedPage() {
     const [loading, setLoading] = useState(true);
     const [myShopIds, setMyShopIds] = useState([]);
     const [deletingId, setDeletingId] = useState(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
     useEffect(() => {
         getApprovedFeedPosts()
@@ -20,7 +23,6 @@ export default function FeedPage() {
             .finally(() => setLoading(false));
     }, []);
 
-    // ดึง shopId ของ user ที่ login อยู่ เพื่อเช็คว่าเป็นเจ้าของโพสต์ไหม
     useEffect(() => {
         if (!user) return;
         getShopsByOwner(user.uid)
@@ -28,8 +30,9 @@ export default function FeedPage() {
             .catch(() => {});
     }, [user]);
 
-    async function handleDelete(postId) {
-        if (!confirm("ต้องการลบประกาศนี้? ลบแล้วไม่สามารถกู้คืนได้")) return;
+    async function handleDeleteConfirmed() {
+        const postId = confirmDeleteId;
+        setConfirmDeleteId(null);
         setDeletingId(postId);
         try {
             await deleteFeedPost(postId);
@@ -43,7 +46,18 @@ export default function FeedPage() {
         }
     }
 
-    if (loading) return <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>;
+    if (loading) {
+        return (
+            <div style={{ maxWidth: 700, margin: "0 auto", padding: "20px 16px" }}>
+                <h1>ประกาศจากร้านค้า</h1>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {Array.from({ length: 3 }).map((_, i) => (
+                        <FeedPostCardSkeleton key={i} />
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={{ maxWidth: 700, margin: "0 auto", padding: "20px 16px" }}>
@@ -58,12 +72,20 @@ export default function FeedPage() {
                             <FeedPostCard
                                 key={post.id}
                                 post={post}
-                                onDelete={isMyPost ? handleDelete : undefined}
+                                onDelete={isMyPost ? (id) => setConfirmDeleteId(id) : undefined}
                                 deleting={deletingId === post.id}
                             />
                         );
                     })}
                 </div>
+            )}
+
+            {confirmDeleteId && (
+                <ConfirmModal
+                    message="ต้องการลบประกาศนี้? ลบแล้วไม่สามารถกู้คืนได้"
+                    onConfirm={handleDeleteConfirmed}
+                    onCancel={() => setConfirmDeleteId(null)}
+                />
             )}
         </div>
     );

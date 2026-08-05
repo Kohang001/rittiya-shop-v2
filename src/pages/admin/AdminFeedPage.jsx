@@ -3,12 +3,15 @@ import { useEffect, useState } from "react";
 import { getAllFeedPostsForAdmin, hideFeedPost, unhideFeedPost } from "../../firebase/firestore";
 import { useToast } from "../../context/ToastContext";
 import AdminNav from "../../components/layout/AdminNav";
+import ConfirmModal from "../../components/ui/ConfirmModal";
+import PageSkeleton from "../../components/ui/PageSkeleton";
 
 export default function AdminFeedPage() {
     const { showToast } = useToast();
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [busyId, setBusyId] = useState(null);
+    const [confirmAction, setConfirmAction] = useState(null); // { type: "hide"|"unhide", postId }
 
     useEffect(() => {
         load();
@@ -21,29 +24,21 @@ export default function AdminFeedPage() {
         setLoading(false);
     }
 
-    async function handleHide(postId) {
-        if (!confirm("ซ่อนประกาศนี้ออกจากหน้า Feed สาธารณะ?")) return;
+    async function handleConfirmed() {
+        const { type, postId } = confirmAction;
+        setConfirmAction(null);
         setBusyId(postId);
         try {
-            await hideFeedPost(postId);
-            showToast("ซ่อนประกาศแล้ว", "success");
+            if (type === "hide") {
+                await hideFeedPost(postId);
+                showToast("ซ่อนประกาศแล้ว", "success");
+            } else {
+                await unhideFeedPost(postId);
+                showToast("ยกเลิกซ่อนแล้ว — โพสต์กลับมาแสดงใน Feed", "success");
+            }
             await load();
         } catch (err) {
-            showToast("ซ่อนประกาศไม่สำเร็จ", "error");
-        } finally {
-            setBusyId(null);
-        }
-    }
-
-    async function handleUnhide(postId) {
-        if (!confirm("ยกเลิกซ่อนประกาศนี้? โพสต์จะกลับไปแสดงใน Feed สาธารณะ")) return;
-        setBusyId(postId);
-        try {
-            await unhideFeedPost(postId);
-            showToast("ยกเลิกซ่อนแล้ว — โพสต์กลับมาแสดงใน Feed", "success");
-            await load();
-        } catch (err) {
-            showToast("ยกเลิกซ่อนไม่สำเร็จ", "error");
+            showToast(type === "hide" ? "ซ่อนประกาศไม่สำเร็จ" : "ยกเลิกซ่อนไม่สำเร็จ", "error");
         } finally {
             setBusyId(null);
         }
@@ -59,7 +54,7 @@ export default function AdminFeedPage() {
                 </p>
 
                 {loading ? (
-                    <p style={{ textAlign: "center" }}>กำลังโหลด...</p>
+                    <PageSkeleton lines={4} />
                 ) : posts.length === 0 ? (
                     <p style={{ color: "var(--color-text-muted)" }}>ยังไม่มีประกาศ</p>
                 ) : (
@@ -95,14 +90,14 @@ export default function AdminFeedPage() {
                                     {post.status === "approved" ? (
                                         <button
                                             disabled={busyId === post.id}
-                                            onClick={() => handleHide(post.id)}
+                                            onClick={() => setConfirmAction({ type: "hide", postId: post.id })}
                                         >
                                             ซ่อนโพสต์นี้
                                         </button>
                                     ) : (
                                         <button
                                             disabled={busyId === post.id}
-                                            onClick={() => handleUnhide(post.id)}
+                                            onClick={() => setConfirmAction({ type: "unhide", postId: post.id })}
                                         >
                                             ยกเลิกซ่อน
                                         </button>
@@ -113,6 +108,18 @@ export default function AdminFeedPage() {
                     </div>
                 )}
             </div>
+
+            {confirmAction && (
+                <ConfirmModal
+                    message={
+                        confirmAction.type === "hide"
+                            ? "ซ่อนประกาศนี้ออกจากหน้า Feed สาธารณะ?"
+                            : "ยกเลิกซ่อนประกาศนี้? โพสต์จะกลับไปแสดงใน Feed สาธารณะ"
+                    }
+                    onConfirm={handleConfirmed}
+                    onCancel={() => setConfirmAction(null)}
+                />
+            )}
         </div>
     );
 }

@@ -10,6 +10,8 @@ import {
     deleteProduct,
 } from "../../firebase/firestore";
 import ImageUploadField from "../../components/form/ImageUploadField";
+import ConfirmModal from "../../components/ui/ConfirmModal";
+import PageSkeleton from "../../components/ui/PageSkeleton";
 
 const STATUS_LABEL = {
     pending: { text: "รอตรวจสอบ", color: "var(--color-status-pending)" },
@@ -28,6 +30,7 @@ export default function SellerProductsPage() {
     const [form, setForm] = useState(EMPTY_FORM);
     const [editingId, setEditingId] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
     useEffect(() => {
         load();
@@ -116,12 +119,13 @@ export default function SellerProductsPage() {
     }
 
     async function handleDelete(productId) {
-        if (!confirm("ลบสินค้านี้แน่ใจไหม?")) return;
+        setConfirmDeleteId(null);
         await deleteProduct(shop.id, productId);
+        showToast("ลบสินค้าแล้ว", "success");
         await load();
     }
 
-    if (loading) return <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>;
+    if (loading) return <PageSkeleton lines={6} />;
     if (!shop) return <p style={{ textAlign: "center", marginTop: 40 }}>ไม่พบร้านค้า</p>;
 
     const editingProduct = editingId ? products.find((p) => p.id === editingId) : null;
@@ -229,12 +233,20 @@ export default function SellerProductsPage() {
                                 </div>
                                 <div style={{ display: "flex", gap: 6 }}>
                                     <button onClick={() => startEdit(product)}>แก้ไข</button>
-                                    <button onClick={() => handleDelete(product.id)}>ลบ</button>
+                                    <button onClick={() => setConfirmDeleteId(product.id)}>ลบ</button>
                                 </div>
                             </div>
                         );
                     })}
                 </div>
+            )}
+
+            {confirmDeleteId && (
+                <ConfirmModal
+                    message="ต้องการลบสินค้านี้ใช่หรือไม่?"
+                    onConfirm={() => handleDelete(confirmDeleteId)}
+                    onCancel={() => setConfirmDeleteId(null)}
+                />
             )}
         </div>
     );

@@ -5,6 +5,8 @@ import { useToast } from "../../context/ToastContext";
 import { getShopsByOwner, getOrdersByShop } from "../../firebase/firestore";
 import { formatCurrency } from "../../utils/formatCurrency";
 
+import PageSkeleton from "../../components/ui/PageSkeleton";
+
 const ORDER_STATUS_LABEL = {
     pending: { text: "รอชำระเงิน", cls: "pending" },
     slip_uploaded: { text: "ส่งสลิปแล้ว รอตรวจสอบ", cls: "pending" },
@@ -71,7 +73,7 @@ export default function SellerOrdersPage() {
         }
     }
 
-    if (loading) return <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>;
+    if (loading) return <PageSkeleton lines={5} />;
     if (!shop) return <p style={{ textAlign: "center", marginTop: 40 }}>ไม่พบร้านค้า</p>;
 
     return (

@@ -7,6 +7,7 @@ import { getShopById, getAllProducts } from "../../firebase/firestore";
 import Icon from "../../components/ui/Icon";
 import Breadcrumb from "../../components/ui/Breadcrumb";
 import AdminNav from "../../components/layout/AdminNav";
+import PageSkeleton from "../../components/ui/PageSkeleton";
 
 const STATUS_LABEL = {
     pending: { text: "รอตรวจสอบ", color: "var(--color-status-pending)" },
@@ -80,7 +81,7 @@ export default function AdminShopDetailPage() {
         }
     }
 
-    if (loading) return <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>;
+    if (loading) return <PageSkeleton lines={6} />;
     if (!shop) return <p style={{ textAlign: "center", marginTop: 40 }}>ไม่พบร้านค้า</p>;
 
     const shopStatusInfo = STATUS_LABEL[shop.status] || { text: shop.status, color: "var(--color-text-muted)" };

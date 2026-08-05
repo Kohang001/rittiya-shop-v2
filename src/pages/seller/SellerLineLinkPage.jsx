@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { getShopsByOwner } from "../../firebase/firestore";
+import PageSkeleton from "../../components/ui/PageSkeleton";
 
 export default function SellerLineLinkPage() {
     const { user } = useAuth();
@@ -17,7 +18,7 @@ export default function SellerLineLinkPage() {
         load();
     }, [user]);
 
-    if (loading) return <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>;
+    if (loading) return <PageSkeleton lines={4} />;
     if (!shop) return <p style={{ textAlign: "center", marginTop: 40 }}>ไม่พบร้านค้า</p>;
 
     const isConnected = Boolean(shop.lineUserId);

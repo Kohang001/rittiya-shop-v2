@@ -251,8 +251,15 @@ label {
 .navbar-drawer {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(15, 23, 42, 0);
   z-index: 1500;
+  animation: drawer-overlay-in 0.3s ease forwards;
+}
+
+@keyframes drawer-overlay-in {
+  to {
+    background: rgba(15, 23, 42, 0.5);
+  }
 }
 
 .navbar-drawer-panel {
@@ -268,6 +275,86 @@ label {
   flex-direction: column;
   gap: 16px;
   box-shadow: var(--shadow-md);
+  transform: translateX(100%);
+  animation: drawer-slide-in 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+@keyframes drawer-slide-in {
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* ---------- Nav link buttons (ปุ่มเมนูที่มีเงา + hover ใน Dashboard) ---------- */
+.nav-link-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.15s, background 0.15s;
+}
+
+.nav-link-btn:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+  background: var(--color-bg-subtle);
+  text-decoration: none;
+}
+
+.nav-link-btn:active {
+  transform: translateY(0);
+}
+
+/* ---------- Confirm Modal (แทน confirm()) ---------- */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0);
+  z-index: 2500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: drawer-overlay-in 0.2s ease forwards;
+}
+
+.confirm-box {
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.2);
+  max-width: 360px;
+  width: calc(100% - 32px);
+  animation: confirm-pop-in 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes confirm-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ---------- Page skeleton (แทน "กำลังโหลด...") ---------- */
+.page-skeleton {
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 /* ---------- Hero ---------- */

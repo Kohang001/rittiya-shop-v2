@@ -5,6 +5,7 @@ import { useAllOrdersForAdmin } from "../../hooks/useOrders";
 import { useAllShopsForAdmin } from "../../hooks/useShops";
 import Breadcrumb from "../../components/ui/Breadcrumb";
 import AdminNav from "../../components/layout/AdminNav";
+import PageSkeleton from "../../components/ui/PageSkeleton";
 import { formatCurrency } from "../../utils/formatCurrency";
 
 const ORDER_STATUS_LABEL = {
@@ -53,7 +54,7 @@ export default function AdminOrdersPage() {
                 />
 
                 {loading ? (
-                    <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>
+                    <PageSkeleton lines={5} />
                 ) : filteredOrders.length === 0 ? (
                     <p style={{ color: "var(--color-text-muted)" }}>ไม่พบออเดอร์</p>
                 ) : (

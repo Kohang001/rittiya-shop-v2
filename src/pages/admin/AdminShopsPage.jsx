@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getAllShopsForAdmin, getAllProducts } from "../../firebase/firestore";
 import Icon from "../../components/ui/Icon";
+import PageSkeleton from "../../components/ui/PageSkeleton";
 
 const STATUS_LABEL = {
     pending: { text: "รอตรวจสอบ", color: "var(--color-warning)" },
@@ -40,7 +41,7 @@ export default function AdminShopsPage() {
                 ? shops.filter((s) => s.status === "pending" || s.pendingProductCount > 0)
                 : shops.filter((s) => s.status === filter);
 
-    if (loading) return <p style={{ textAlign: "center", marginTop: 40 }}>กำลังโหลด...</p>;
+    if (loading) return <PageSkeleton lines={5} />;
 
     return (
         <div style={{ maxWidth: 800, margin: "40px auto", padding: "0 16px" }}>
