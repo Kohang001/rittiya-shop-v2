@@ -1,21 +1,21 @@
 // src/components/feed/FeedPostCard.jsx
 import { Link } from "react-router-dom";
 
-export default function FeedPostCard({ post }) {
+export default function FeedPostCard({ post, onDelete, deleting }) {
     return (
-        <Link
-            to={`/shop/${post.shopId}`}
-            style={{ textDecoration: "none", color: "inherit", display: "block" }}
+        <div style={{ border: "1px solid #ddd", borderRadius: 12, overflow: "hidden", transition: "box-shadow 0.2s" }}
+             onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.10)"}
+             onMouseLeave={(e) => e.currentTarget.style.boxShadow = "none"}
         >
-            <div style={{ border: "1px solid #ddd", borderRadius: 12, overflow: "hidden", cursor: "pointer", transition: "box-shadow 0.2s" }}
-                 onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.10)"}
-                 onMouseLeave={(e) => e.currentTarget.style.boxShadow = "none"}
+            <Link
+                to={`/shop/${post.shopId}`}
+                style={{ textDecoration: "none", color: "inherit", display: "block", cursor: "pointer" }}
             >
                 {post.imageUrl && (
                     <img
                         src={post.imageUrl}
                         alt={post.title}
-                        style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover" }}
+                        style={{ width: "100%", display: "block" }}
                     />
                 )}
                 <div style={{ padding: 14 }}>
@@ -47,7 +47,27 @@ export default function FeedPostCard({ post }) {
                         {post.content}
                     </p>
                 </div>
-            </div>
-        </Link>
+            </Link>
+
+            {onDelete && (
+                <div style={{ padding: "0 14px 14px" }}>
+                    <button
+                        onClick={() => onDelete(post.id)}
+                        disabled={deleting}
+                        style={{
+                            fontSize: 12,
+                            color: "var(--color-danger, #ef4444)",
+                            background: "none",
+                            border: "1px solid var(--color-danger, #ef4444)",
+                            borderRadius: "var(--radius-sm, 6px)",
+                            padding: "4px 12px",
+                            cursor: "pointer",
+                        }}
+                    >
+                        {deleting ? "กำลังลบ..." : "ลบโพสต์นี้"}
+                    </button>
+                </div>
+            )}
+        </div>
     );
 }

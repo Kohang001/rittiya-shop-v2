@@ -205,3 +205,13 @@ export async function getAllFeedPostsForAdmin() {
 export async function hideFeedPost(postId) {
     await updateDoc(doc(db, "feedPosts", postId), { status: "rejected" });
 }
+
+/** Admin ยกเลิกซ่อนโพสต์ — เปลี่ยนสถานะกลับเป็น approved */
+export async function unhideFeedPost(postId) {
+    await updateDoc(doc(db, "feedPosts", postId), { status: "approved" });
+}
+
+/** เจ้าของร้าน (หรือ Admin) ลบโพสต์ */
+export async function deleteFeedPost(postId) {
+    await deleteDoc(doc(db, "feedPosts", postId));
+}

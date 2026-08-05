@@ -1,6 +1,6 @@
 // src/pages/admin/AdminFeedPage.jsx
 import { useEffect, useState } from "react";
-import { getAllFeedPostsForAdmin, hideFeedPost } from "../../firebase/firestore";
+import { getAllFeedPostsForAdmin, hideFeedPost, unhideFeedPost } from "../../firebase/firestore";
 import { useToast } from "../../context/ToastContext";
 import AdminNav from "../../components/layout/AdminNav";
 
@@ -35,13 +35,27 @@ export default function AdminFeedPage() {
         }
     }
 
+    async function handleUnhide(postId) {
+        if (!confirm("ยกเลิกซ่อนประกาศนี้? โพสต์จะกลับไปแสดงใน Feed สาธารณะ")) return;
+        setBusyId(postId);
+        try {
+            await unhideFeedPost(postId);
+            showToast("ยกเลิกซ่อนแล้ว — โพสต์กลับมาแสดงใน Feed", "success");
+            await load();
+        } catch (err) {
+            showToast("ยกเลิกซ่อนไม่สำเร็จ", "error");
+        } finally {
+            setBusyId(null);
+        }
+    }
+
     return (
         <div>
             <AdminNav />
             <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 16px" }}>
                 <h2>ประกาศทั้งหมด</h2>
                 <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 20 }}>
-                    ประกาศขึ้นหน้า Feed ทันทีที่สร้างโดยไม่ต้องรออนุมัติ — หน้านี้ใช้ตรวจสอบย้อนหลังและซ่อนโพสต์ที่ไม่เหมาะสม
+                    ประกาศขึ้นหน้า Feed ทันทีที่สร้างโดยไม่ต้องรออนุมัติ — หน้านี้ใช้ตรวจสอบย้อนหลังและซ่อน/ยกเลิกซ่อนโพสต์
                 </p>
 
                 {loading ? (
@@ -55,6 +69,11 @@ export default function AdminFeedPage() {
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
                                     <div>
                                         <strong>{post.title}</strong>
+                                        {post.shopName && (
+                                            <span style={{ fontSize: 12, color: "var(--color-text-muted)", marginLeft: 8 }}>
+                                                โดย {post.shopName}
+                                            </span>
+                                        )}
                                         <p style={{ margin: "4px 0", fontSize: 13, color: "var(--color-text-muted)", whiteSpace: "pre-wrap" }}>
                                             {post.content}
                                         </p>
@@ -72,15 +91,23 @@ export default function AdminFeedPage() {
                                         style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8, marginTop: 8 }}
                                     />
                                 )}
-                                {post.status === "approved" && (
-                                    <button
-                                        disabled={busyId === post.id}
-                                        onClick={() => handleHide(post.id)}
-                                        style={{ marginTop: 8 }}
-                                    >
-                                        ซ่อนโพสต์นี้
-                                    </button>
-                                )}
+                                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                                    {post.status === "approved" ? (
+                                        <button
+                                            disabled={busyId === post.id}
+                                            onClick={() => handleHide(post.id)}
+                                        >
+                                            ซ่อนโพสต์นี้
+                                        </button>
+                                    ) : (
+                                        <button
+                                            disabled={busyId === post.id}
+                                            onClick={() => handleUnhide(post.id)}
+                                        >
+                                            ยกเลิกซ่อน
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>
