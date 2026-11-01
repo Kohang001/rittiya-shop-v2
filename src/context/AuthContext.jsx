@@ -1,7 +1,9 @@
 // src/context/AuthContext.jsx — With Super Admin, Normal Admin & User Profile Auto-fill Support
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { doc, getDoc } from "firebase/firestore";
 import { watchAuthState } from "../firebase/auth";
 import { getUserProfile } from "../firebase/firestore";
+import { db } from "../firebase/config";
 
 const AuthContext = createContext(null);
 
@@ -13,6 +15,38 @@ export function AuthProvider({ children }) {
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     const [isNormalAdmin, setIsNormalAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
+
+    const checkAdminStatus = useCallback(async (forcedUser) => {
+        const target = forcedUser || user;
+        if (!target) return false;
+        try {
+            // 1. ลอง Force refresh token จาก Firebase Auth
+            const tokenResult = await target.getIdTokenResult(true);
+            if (tokenResult.claims.admin === true) {
+                const role = tokenResult.claims.adminRole || "super";
+                setIsAdmin(true);
+                setAdminRole(role);
+                setIsSuperAdmin(role === "super");
+                setIsNormalAdmin(role === "normal");
+                return true;
+            }
+            // 2. ตรวจสอบจาก Firestore admins/{uid} โดยตรง
+            const adminDocSnap = await getDoc(doc(db, "admins", target.uid));
+            if (adminDocSnap.exists()) {
+                const adminData = adminDocSnap.data();
+                if (adminData.role === "super" || adminData.role === "normal") {
+                    setIsAdmin(true);
+                    setAdminRole(adminData.role);
+                    setIsSuperAdmin(adminData.role === "super");
+                    setIsNormalAdmin(adminData.role === "normal");
+                    return true;
+                }
+            }
+            return false;
+        } catch {
+            return false;
+        }
+    }, [user]);
 
     const refreshUserProfile = useCallback(async (uid) => {
         const targetUid = uid || user?.uid;
@@ -40,11 +74,31 @@ export function AuthProvider({ children }) {
                 refreshUserProfile(firebaseUser.uid);
 
                 // ดึง custom claim จาก ID token เพื่อเช็คระดับขั้น Admin
-                const tokenResult = await firebaseUser.getIdTokenResult();
-                const hasAdminClaim = tokenResult.claims.admin === true;
+                let tokenResult = await firebaseUser.getIdTokenResult();
+                let hasAdminClaim = tokenResult.claims.admin === true;
+                let role = tokenResult.claims.adminRole || (hasAdminClaim ? "super" : null);
 
-                // หากเป็นแอดมินแต่ยังไม่มี claim adminRole (บัญชีเดิม) ให้ถือเป็น 'super' โดยปริยาย (Backward Compatible)
-                const role = tokenResult.claims.adminRole || (hasAdminClaim ? "super" : null);
+                // ตรวจสอบเอกสาร Firestore admins/{uid} เผื่อ token claim ยังไม่ได้ refresh ทันที
+                if (!hasAdminClaim) {
+                    try {
+                        const adminDocSnap = await getDoc(doc(db, "admins", firebaseUser.uid));
+                        if (adminDocSnap.exists()) {
+                            const adminData = adminDocSnap.data();
+                            if (adminData.role === "super" || adminData.role === "normal") {
+                                hasAdminClaim = true;
+                                role = adminData.role;
+                                // Force refresh token ในเบื้องหลังเพื่อให้ได้ claims ล่าสุด
+                                firebaseUser.getIdTokenResult(true).then((refreshed) => {
+                                    if (refreshed.claims.admin === true) {
+                                        setAdminRole(refreshed.claims.adminRole || role);
+                                    }
+                                }).catch(() => {});
+                            }
+                        }
+                    } catch (err) {
+                        console.warn("Check admins collection error:", err);
+                    }
+                }
 
                 setIsAdmin(hasAdminClaim);
                 setAdminRole(role);
@@ -68,6 +122,7 @@ export function AuthProvider({ children }) {
         user,
         userProfile,
         refreshUserProfile,
+        checkAdminStatus,
         isAdmin,
         adminRole,
         isSuperAdmin,

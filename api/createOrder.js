@@ -143,6 +143,19 @@ export default async function handler(req, res) {
             createdAt: new Date(),
         });
 
+        // บันทึกกิจกรรมคำสั่งซื้อใหม่ลงใน adminLogs
+        adminDb.collection("adminLogs").add({
+            action: "order_created",
+            targetType: "order",
+            targetId: orderRef.id,
+            targetName: `ออเดอร์ #${orderRef.id.slice(0, 7)}`,
+            detail: `มีคำสั่งซื้อใหม่ ยอด ฿${total.toLocaleString()} (${validatedItems.length} รายการ) ที่ร้าน ${shop.name || shopId} นัดรับ: ${pickupLocation}`,
+            status: "info",
+            actorEmail: customerName,
+            actorUid: customerContact,
+            createdAt: new Date(),
+        }).catch((logErr) => console.warn("Failed to write order log:", logErr));
+
         // Push แจ้งเตือนไปยัง LINE ของแม่ค้า
         if (shop.lineUserId) {
             try {

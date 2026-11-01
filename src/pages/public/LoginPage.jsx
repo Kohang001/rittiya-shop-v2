@@ -13,7 +13,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    const { refreshUserProfile } = useAuth();
+    const { refreshUserProfile, checkAdminStatus } = useAuth();
     const { showToast } = useToast();
     const navigate = useNavigate();
 
@@ -32,8 +32,13 @@ export default function LoginPage() {
 
         try {
             await refreshUserProfile(user.uid);
+            const isUserAdmin = await checkAdminStatus(user);
             showToast("เข้าสู่ระบบสำเร็จ", "success");
-            navigate("/");
+            if (isUserAdmin) {
+                navigate("/admin");
+            } else {
+                navigate("/");
+            }
         } catch {
             navigate("/");
         } finally {

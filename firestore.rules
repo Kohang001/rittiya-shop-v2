@@ -8,12 +8,17 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.token.admin == true;
+      return isSignedIn() && (
+        request.auth.token.admin == true ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
 
     function isSuperAdmin() {
       return isAdmin() && (
-        !("adminRole" in request.auth.token) || request.auth.token.adminRole == "super"
+        request.auth.token.adminRole == "super" ||
+        (!("adminRole" in request.auth.token) && !exists(/databases/$(database)/documents/admins/$(request.auth.uid))) ||
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == "super")
       );
     }
 
@@ -134,11 +139,11 @@ service cloud.firestore {
     }
 
     // ---------- adminLogs (Audit Trail & Activity Logs) ----------
-    // บันทึกกิจกรรมและข้อผิดพลาดของ Admin — อ่านและสร้างได้เฉพาะ Admin เท่านั้น
+    // บันทึกกิจกรรมและข้อผิดพลาด — อ่านได้เฉพาะ Admin เท่านั้น สมาชิกที่ล็อกอินสามารถส่งบันทึกกิจกรรมได้
     // ห้ามแก้ไขหรือลบโดยเด็ดขาด (Immutable Audit Log) เพื่อการตรวจสอบย้อนหลังที่โปร่งใส
     match /adminLogs/{logId} {
       allow read: if isAdmin();
-      allow create: if isAdmin();
+      allow create: if isSignedIn();
       allow update, delete: if false;
     }
 
@@ -149,9 +154,9 @@ service cloud.firestore {
     }
 
     // ---------- admins/{uid} ----------
-    // บันทึกระดับสิทธิ์และรหัสผูก LINE ของแอดมินรายบุคคล — อ่านได้เฉพาะ Admin และแก้ไขได้เฉพาะ Super Admin
+    // บันทึกระดับสิทธิ์และรหัสผูก LINE ของแอดมินรายบุคคล — ผู้ใช้ที่ล็อกอินสามารถอ่านเพื่อตรวจสอบสิทธิ์ตนเองหรือแอดมินอ่านได้ทั้งหมด และแก้ไขได้เฉพาะ Super Admin
     match /admins/{uid} {
-      allow read: if isAdmin();
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
       allow write: if isSuperAdmin();
     }
 

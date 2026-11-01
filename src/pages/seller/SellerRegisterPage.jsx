@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { registerUser } from "../../firebase/auth";
-import { createShopDraft, addProduct } from "../../firebase/firestore";
+import { createShopDraft, addProduct, logAdminAction } from "../../firebase/firestore";
 import ImageUploadField from "../../components/form/ImageUploadField";
 import DynamicProductFieldList from "../../components/form/DynamicProductFieldList";
 import PasswordInput from "../../components/ui/PasswordInput";
@@ -280,6 +280,18 @@ export default function SellerRegisterPage() {
                     imageUrl: product.imageUrl || "",
                 });
             }
+
+            // บันทึก Log กิจกรรมเปิดร้านค้าใหม่ (ไม่บันทึกรหัสเชื่อมต่อเด็ดขาดเพื่อความเป็นส่วนตัว)
+            logAdminAction({
+                action: "shop_registered",
+                targetType: "shop",
+                targetId: shopId,
+                targetName: data.name.trim(),
+                detail: `ร้านค้าใหม่ลงทะเบียน: ${data.name.trim()} (${category}) โดย ${data.email}`,
+                status: "success",
+                actorEmail: data.email,
+                actorUid: user.uid,
+            }).catch(() => {});
 
             navigate("/seller/pending-approval", { state: { lineLinkCode } });
         } catch (err) {

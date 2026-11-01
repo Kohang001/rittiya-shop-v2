@@ -89,7 +89,7 @@ export default async function handler(req, res) {
                     targetType: "auth",
                     targetId: targetUid,
                     targetName: targetUser.email || targetUid,
-                    detail: `Super Admin (${superAdmin.email || superAdmin.uid}) รีเซ็ตการผูก LINE ของ ${targetUser.email} และออกรหัสเชื่อมต่อใหม่: ${lineLinkCode}`,
+                    detail: `Super Admin (${superAdmin.email || superAdmin.uid}) รีเซ็ตการผูก LINE ของ ${targetUser.email}`,
                     status: "warning",
                     actorEmail: superAdmin.email || "Super Admin",
                     actorUid: superAdmin.uid,
@@ -236,17 +236,17 @@ export default async function handler(req, res) {
                 { merge: true }
             );
 
-            // บันทึก Audit Log
+            // บันทึก Audit Log (ห้ามแสดงหรือบันทึกรหัสเชื่อมต่อเด็ดขาดเพื่อความปลอดภัย)
             await adminDb.collection("adminLogs").add({
                 action: "grant_admin_role",
                 targetType: "auth",
                 targetId: targetUid,
                 targetName: targetUser.email || targetUid,
-                detail: `Super Admin (${superAdmin.email || superAdmin.uid}) แต่งตั้ง ${targetUser.email} เป็น ${newRole === "super" ? "Super Admin" : "Normal Admin"} พร้อมออกรหัสเชื่อมต่อ LINE: ${lineLinkCode}`,
+                detail: `Super Admin (${superAdmin.email || superAdmin.uid}) แต่งตั้ง ${targetUser.email} เป็น ${newRole === "super" ? "Super Admin" : "Normal Admin"}`,
                 status: "success",
                 actorEmail: superAdmin.email || "Super Admin",
                 actorUid: superAdmin.uid,
-                metadata: { newRole, lineLinkCode },
+                metadata: { newRole },
                 createdAt: new Date(),
             });
 

@@ -777,3 +777,24 @@ export async function saveUserProfile(uid, data) {
         throw err;
     }
 }
+
+/**
+ * ดึงข้อมูลผู้ใช้ทั้งหมดสำหรับแอดมิน เพื่อนำมาประกอบเป็น Activity Stream
+ */
+export async function getAllUsersForAdmin(limitCount = 60) {
+    try {
+        const q = query(
+            collection(db, "users"),
+            orderBy("createdAt", "desc"),
+            limit(limitCount)
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+        }));
+    } catch (err) {
+        console.warn("Failed to get users for admin:", err);
+        return [];
+    }
+}

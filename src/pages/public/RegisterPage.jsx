@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { registerUser } from "../../firebase/auth";
-import { saveUserProfile } from "../../firebase/firestore";
+import { saveUserProfile, logAdminAction } from "../../firebase/firestore";
 import { validatePhone } from "../../utils/validators";
 import PasswordInput from "../../components/ui/PasswordInput";
 import Icon from "../../components/ui/Icon";
@@ -74,6 +74,18 @@ export default function RegisterPage() {
 
             // 4. รีเฟรชข้อมูลโปรไฟล์ใน State
             await refreshUserProfile(user.uid);
+
+            // 5. บันทึกประวัติกิจกรรมสมาชิกใหม่สมัครเข้าสู่ระบบ
+            logAdminAction({
+                action: "user_registered",
+                targetType: "user",
+                targetId: user.uid,
+                targetName: displayName.trim(),
+                detail: `สมาชิกใหม่สมัครเข้าใช้งาน: ${displayName.trim()} (${email.trim()})`,
+                status: "info",
+                actorEmail: email.trim(),
+                actorUid: user.uid,
+            }).catch(() => {});
 
             showToast("สมัครสมาชิกสำเร็จ ยินดีต้อนรับ!", "success");
             navigate("/");
@@ -264,3 +276,4 @@ export default function RegisterPage() {
         </div>
     );
 }
+

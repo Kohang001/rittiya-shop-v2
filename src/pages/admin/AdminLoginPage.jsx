@@ -28,14 +28,13 @@ export default function AdminLoginPage() {
         logAdminAction({
             action: "admin_login",
             targetType: "auth",
-            detail: `ผู้ดูแลระบบเข้าสู่ระบบสำเร็จ (${email})`,
+            detail: `ผู้ดูแลระบบเข้าสู่ระบบ (${email})`,
             status: "success",
             actorEmail: email,
             actorUid: user?.uid,
         }).catch(() => {});
 
-        // ไม่เช็ค isAdmin ตรงนี้ — ปล่อยให้ AdminRoute เป็นคนเช็คและเด้งออกถ้าไม่ใช่ admin
-        navigate("/admin/shops");
+        navigate("/admin");
     }
 
     return (
