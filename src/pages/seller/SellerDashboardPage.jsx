@@ -1,18 +1,12 @@
-// src/pages/seller/SellerDashboardPage.jsx — อัปเดต: ใช้ Icon component แทนอิโมจิ
+// src/pages/seller/SellerDashboardPage.jsx
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { logoutUser } from "../../firebase/auth";
-import { getShopsByOwner, getOrdersByShop, setShopOpenStatus } from "../../firebase/firestore";
+import { getShopsByOwner, getOrdersByShop, setShopOpenStatus, updateShopInfo } from "../../firebase/firestore";
 import PageSkeleton from "../../components/ui/PageSkeleton";
 import Icon from "../../components/ui/Icon";
-
-const STATUS_LABEL = {
-    pending: { text: "รอตรวจสอบ", color: "var(--color-warning)" },
-    approved: { text: "อนุมัติแล้ว", color: "var(--color-success)" },
-    rejected: { text: "ไม่อนุมัติ", color: "var(--color-danger)" },
-};
 
 export default function SellerDashboardPage() {
     const { user } = useAuth();
@@ -29,6 +23,10 @@ export default function SellerDashboardPage() {
             const myShop = shops[0] || null;
             setShop(myShop);
             if (myShop) {
+                // หากร้านค้ายังเป็น pending ให้ลองอัปเดตเป็น approved เบื้องหลัง
+                if (myShop.status === "pending") {
+                    updateShopInfo(myShop.id, { status: "approved" }).catch(() => {});
+                }
                 const orders = await getOrdersByShop(myShop.id);
                 setOrderCount(orders.length);
             }
@@ -60,7 +58,7 @@ export default function SellerDashboardPage() {
 
     if (!shop) {
         return (
-            <div style={{ maxWidth: 500, margin: "40px auto", textAlign: "center" }}>
+            <div style={{ maxWidth: 500, margin: "40px auto", textAlign: "center", padding: "0 16px" }}>
                 <p>ยังไม่มีร้านค้าผูกกับบัญชีนี้</p>
                 <Link to="/seller/register" className="nav-link-btn" style={{ justifyContent: "center" }}>
                     สมัครเปิดร้าน
@@ -69,47 +67,97 @@ export default function SellerDashboardPage() {
         );
     }
 
-    const statusInfo = STATUS_LABEL[shop.status] || { text: shop.status, color: "var(--color-text-muted)" };
+    // ในระบบอนุมัติอัตโนมัติ หากร้านค้าไม่ถูกปฏิเสธ (rejected) ถือว่าอนุมัติและเปิดขายได้ทันที
+    const isApproved = shop.status !== "rejected";
 
     return (
-        <div style={{ maxWidth: 600, margin: "40px auto", padding: "0 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ maxWidth: 600, margin: "32px auto", padding: "0 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div>
-                    <h2 style={{ margin: 0 }}>{shop.name}</h2>
+                    <h2 style={{ margin: 0, fontSize: "clamp(20px, 4vw, 24px)" }}>{shop.name}</h2>
                     <p style={{ margin: "2px 0 0 0", fontSize: 13, color: "var(--color-text-muted)" }}>{user.email}</p>
                 </div>
-                <button onClick={handleLogout}>
+                <button
+                    onClick={handleLogout}
+                    style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "8px 14px",
+                        fontSize: 13,
+                        background: "var(--color-bg-subtle)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: "var(--radius-sm)",
+                        cursor: "pointer",
+                    }}
+                >
                     <Icon name="log-out" size={16} /> ออกจากระบบ
                 </button>
             </div>
 
-            <p style={{ margin: "8px 0" }}>
-                สถานะร้าน: <strong style={{ color: statusInfo.color }}>{statusInfo.text}</strong>
-            </p>
+            {/* แสดงสถานะร้านค้า */}
+            <div
+                style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "6px 12px",
+                    borderRadius: "var(--radius-sm)",
+                    background: isApproved ? "var(--color-status-approved-bg)" : "var(--color-status-rejected-bg)",
+                    border: `1px solid ${isApproved ? "rgba(34, 197, 94, 0.2)" : "rgba(239, 68, 68, 0.2)"}`,
+                    margin: "6px 0 16px 0",
+                }}
+            >
+                <span className={`pulse-dot pulse-dot--${isApproved ? "success" : "rejected"}`} />
+                <span style={{ fontSize: 13, fontWeight: 500 }}>
+                    สถานะร้าน:{" "}
+                    <strong style={{ color: isApproved ? "var(--color-success)" : "var(--color-danger)" }}>
+                        {isApproved ? "อนุมัติแล้ว (เปิดร้านแล้ว)" : "ไม่อนุมัติ"}
+                    </strong>
+                </span>
+            </div>
 
-            {shop.status === "approved" && (
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        border: "1px solid var(--color-border)",
-                        borderRadius: "var(--radius-sm)",
-                        padding: "10px 14px",
-                        marginBottom: 12,
-                    }}
-                >
-                    <span style={{ fontSize: 14 }}>
-                        {shop.isOpen !== false ? "🟢 ร้านเปิดรับออเดอร์อยู่" : "⏸️ ร้านปิดรับออเดอร์ชั่วคราว"}
-                    </span>
-                    <button onClick={handleToggleOpen} disabled={togglingOpen}>
-                        {shop.isOpen !== false ? "ปิดร้านชั่วคราว" : "เปิดร้านอีกครั้ง"}
+            {/* การสลับเปิด/ปิดร้าน */}
+            {isApproved && (
+                <div className="toggle-switch-card">
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span className={`pulse-dot pulse-dot--${shop.isOpen !== false ? "success" : "warning"}`} />
+                        <div>
+                            <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>
+                                {shop.isOpen !== false ? "ร้านเปิดรับออเดอร์อยู่" : "ร้านปิดรับออเดอร์ชั่วคราว"}
+                            </p>
+                            <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-muted)" }}>
+                                {shop.isOpen !== false ? "ลูกค้าสามารถเลือกชมและสั่งซื้อสินค้าได้" : "หยุดรับออเดอร์ใหม่ชั่วคราว"}
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleToggleOpen}
+                        disabled={togglingOpen}
+                        className={`toggle-switch-btn ${shop.isOpen !== false ? "toggle-switch-btn--active" : ""}`}
+                        aria-label="เปลี่ยนสถานะเปิด/ปิดร้าน"
+                        title={shop.isOpen !== false ? "แตะเพื่อปิดร้านชั่วคราว" : "แตะเพื่อเปิดร้าน"}
+                    >
+                        <span className="toggle-switch-thumb" />
                     </button>
                 </div>
             )}
 
             {shop.status === "rejected" && shop.rejectReason && (
-                <p style={{ color: "var(--color-danger)", fontSize: 14 }}>เหตุผล: {shop.rejectReason}</p>
+                <div
+                    style={{
+                        padding: 12,
+                        background: "var(--color-status-rejected-bg)",
+                        border: "1px solid rgba(239, 68, 68, 0.2)",
+                        borderRadius: "var(--radius-sm)",
+                        color: "var(--color-danger)",
+                        fontSize: 13,
+                        marginTop: 12,
+                    }}
+                >
+                    เหตุผลที่ไม่อนุมัติ: {shop.rejectReason}
+                </div>
             )}
 
             <div
@@ -120,27 +168,31 @@ export default function SellerDashboardPage() {
                     marginTop: 20,
                 }}
             >
-                <div style={{ border: "1px solid var(--color-border)", borderRadius: 10, padding: 14 }}>
+                <div style={{ border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", padding: 16, background: "var(--color-bg-surface)" }}>
                     <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-muted)" }}>ออเดอร์ทั้งหมด</p>
-                    <p style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>{orderCount}</p>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 26, fontWeight: 700 }}>{orderCount}</p>
+                </div>
+                <div style={{ border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", padding: 16, background: "var(--color-bg-surface)" }}>
+                    <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-muted)" }}>หมวดหมู่ร้าน</p>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 16, fontWeight: 600 }}>{shop.category || "ทั่วไป"}</p>
                 </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 20 }}>
                 <Link to="/seller/shop/edit" className="nav-link-btn">
-                    <Icon name="settings" size={20} /> แก้ไขข้อมูลร้าน
+                    <Icon name="settings" size={18} /> แก้ไขข้อมูลร้าน
                 </Link>
                 <Link to="/seller/products" className="nav-link-btn">
-                    <Icon name="box" size={20} /> จัดการสินค้า
+                    <Icon name="box" size={18} /> จัดการสินค้า
                 </Link>
                 <Link to="/seller/orders" className="nav-link-btn">
-                    <Icon name="receipt" size={20} /> ดูออเดอร์
+                    <Icon name="receipt" size={18} /> ดูออเดอร์
                 </Link>
                 <Link to="/seller/line-link" className="nav-link-btn">
-                    <Icon name="message-circle" size={20} /> เชื่อมต่อ LINE
+                    <Icon name="message-circle" size={18} /> เชื่อมต่อ LINE
                 </Link>
                 <Link to="/seller/feed/new" className="nav-link-btn">
-                    <Icon name="megaphone" size={20} /> เพิ่มประกาศ
+                    <Icon name="megaphone" size={18} /> เพิ่มประกาศ
                 </Link>
             </div>
         </div>

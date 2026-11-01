@@ -59,13 +59,14 @@ export default function ContactPage() {
                         href={c.href}
                         target={c.href.startsWith("http") ? "_blank" : undefined}
                         rel="noreferrer"
-                        className="card"
+                        className="card spring-card"
                         style={{
                             display: "flex",
                             alignItems: "center",
                             gap: 12,
                             padding: 14,
                             color: "var(--color-text)",
+                            textDecoration: "none",
                         }}
                     >
                         <Icon name={c.icon} size={20} />

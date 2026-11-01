@@ -1,5 +1,7 @@
 // src/components/feed/FeedPostCard.jsx
+import React from "react";
 import { Link } from "react-router-dom";
+import Icon from "../ui/Icon";
 
 export default function FeedPostCard({ post, onDelete, deleting }) {
     return (
@@ -52,19 +54,25 @@ export default function FeedPostCard({ post, onDelete, deleting }) {
             {onDelete && (
                 <div style={{ padding: "0 14px 14px" }}>
                     <button
+                        type="button"
                         onClick={() => onDelete(post.id)}
                         disabled={deleting}
                         style={{
                             fontSize: 12,
-                            color: "var(--color-danger, #ef4444)",
+                            color: "var(--color-danger)",
                             background: "none",
-                            border: "1px solid var(--color-danger, #ef4444)",
-                            borderRadius: "var(--radius-sm, 6px)",
-                            padding: "4px 12px",
+                            border: "1px solid var(--color-danger)",
+                            borderRadius: "var(--radius-sm)",
+                            padding: "6px 12px",
                             cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            minHeight: 32,
                         }}
                     >
-                        {deleting ? "กำลังลบ..." : "ลบโพสต์นี้"}
+                        <Icon name="trash" size={13} color="var(--color-danger)" />
+                        <span>{deleting ? "กำลังลบ..." : "ลบโพสต์นี้"}</span>
                     </button>
                 </div>
             )}

@@ -1,4 +1,4 @@
-// src/context/AuthContext.jsx
+// src/context/AuthContext.jsx — With Super Admin & Normal Admin RBAC Support
 import { createContext, useContext, useEffect, useState } from "react";
 import { watchAuthState } from "../firebase/auth";
 
@@ -7,6 +7,9 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [adminRole, setAdminRole] = useState(null); // 'super' | 'normal' | null
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+    const [isNormalAdmin, setIsNormalAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -15,13 +18,23 @@ export function AuthProvider({ children }) {
             if (firebaseUser) {
                 setUser(firebaseUser);
 
-                // ดึง custom claim จาก ID token เพื่อเช็คว่าเป็น admin ไหม
-                // (claim นี้จะถูกตั้งผ่าน /api/setAdminClaim เท่านั้น ไม่มีทางตั้งเองจาก client)
+                // ดึง custom claim จาก ID token เพื่อเช็คระดับขั้น Admin
                 const tokenResult = await firebaseUser.getIdTokenResult();
-                setIsAdmin(tokenResult.claims.admin === true);
+                const hasAdminClaim = tokenResult.claims.admin === true;
+
+                // หากเป็นแอดมินแต่ยังไม่มี claim adminRole (บัญชีเดิม) ให้ถือเป็น 'super' โดยปริยาย (Backward Compatible)
+                const role = tokenResult.claims.adminRole || (hasAdminClaim ? "super" : null);
+
+                setIsAdmin(hasAdminClaim);
+                setAdminRole(role);
+                setIsSuperAdmin(hasAdminClaim && role === "super");
+                setIsNormalAdmin(hasAdminClaim && role === "normal");
             } else {
                 setUser(null);
                 setIsAdmin(false);
+                setAdminRole(null);
+                setIsSuperAdmin(false);
+                setIsNormalAdmin(false);
             }
             setLoading(false);
         });
@@ -29,7 +42,14 @@ export function AuthProvider({ children }) {
         return () => unsubscribe();
     }, []);
 
-    const value = { user, isAdmin, loading };
+    const value = {
+        user,
+        isAdmin,
+        adminRole,
+        isSuperAdmin,
+        isNormalAdmin,
+        loading,
+    };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

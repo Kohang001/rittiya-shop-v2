@@ -1,5 +1,5 @@
-// src/pages/public/ShopDetailPage.jsx — อัปเดต: เช็คร้านปิดชั่วคราว + ส่ง promptpayTarget ให้ CheckoutModal
-import { useEffect, useState } from "react";
+// src/pages/public/ShopDetailPage.jsx — อัปเดต Mobile-First + Zero-Emoji + Vector Iconography
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getShopById, getApprovedProducts } from "../../firebase/firestore";
 import { useCart } from "../../context/CartContext";
@@ -10,6 +10,7 @@ import CartSummary from "../../components/shop/CartSummary";
 import CheckoutModal from "../../components/shop/CheckoutModal";
 import Breadcrumb from "../../components/ui/Breadcrumb";
 import Icon from "../../components/ui/Icon";
+import StatusBadge from "../../components/ui/StatusBadge";
 
 export default function ShopDetailPage() {
     const { shopId } = useParams();
@@ -37,7 +38,7 @@ export default function ShopDetailPage() {
         return (
             <div style={{ maxWidth: 1000, margin: "0 auto", padding: "20px 16px" }}>
                 <div className="shop-detail-layout">
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 150px), 1fr))", gap: 12 }}>
                         {Array.from({ length: 6 }).map((_, i) => (
                             <ProductCardSkeleton key={i} />
                         ))}
@@ -92,25 +93,74 @@ export default function ShopDetailPage() {
         <div style={{ maxWidth: 1000, margin: "0 auto", padding: "20px 16px" }}>
             <Breadcrumb items={[{ label: "ร้านค้า", to: "/" }, { label: shop.name }]} />
 
-            <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 20 }}>
-                {shop.logoUrl && (
+            {/* Shop Header Banner */}
+            <div
+                className="card"
+                style={{
+                    padding: "16px 20px",
+                    display: "flex",
+                    gap: 16,
+                    alignItems: "center",
+                    marginBottom: 20,
+                    flexWrap: "wrap",
+                }}
+            >
+                {shop.logoUrl ? (
                     <img
                         src={shop.logoUrl}
                         alt={shop.name}
-                        style={{ width: 80, height: 80, borderRadius: 12, objectFit: "cover" }}
+                        style={{ width: 72, height: 72, borderRadius: "var(--radius-md)", objectFit: "cover", flexShrink: 0 }}
                     />
+                ) : (
+                    <div
+                        style={{
+                            width: 72,
+                            height: 72,
+                            borderRadius: "var(--radius-md)",
+                            background: "var(--color-bg-subtle)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                        }}
+                    >
+                        <Icon name="store" size={32} color="var(--color-border)" />
+                    </div>
                 )}
-                <div>
-                    <h1 style={{ margin: 0 }}>{shop.name}</h1>
-                    <p style={{ margin: 0, color: "var(--color-text-muted)" }}>{shop.slogan}</p>
-                    <p style={{ margin: "4px 0 0 0", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-                        <Icon name="phone" size={14} /> {shop.phone}
-                        {shop.ig && (
-                            <>
-                                <Icon name="instagram" size={14} style={{ marginLeft: 10 }} /> @{shop.ig}
-                            </>
+
+                <div style={{ flex: 1, minWidth: 200 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+                        <h1 style={{ margin: 0, fontSize: "clamp(18px, 5vw, 24px)" }}>{shop.name}</h1>
+                        <StatusBadge status={!isClosed} />
+                    </div>
+
+                    {shop.slogan && <p style={{ margin: "0 0 6px 0", color: "var(--color-text-muted)", fontSize: 14 }}>{shop.slogan}</p>}
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", fontSize: 13, color: "var(--color-text-muted)" }}>
+                        {shop.phone && (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                <Icon name="phone" size={13} /> {shop.phone}
+                            </span>
                         )}
-                    </p>
+                        {shop.ig && (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                <Icon name="instagram" size={13} /> @{shop.ig}
+                            </span>
+                        )}
+                        {shop.category && (
+                            <span
+                                style={{
+                                    fontSize: 11,
+                                    background: "var(--color-primary-bg)",
+                                    color: "var(--color-primary)",
+                                    padding: "2px 8px",
+                                    borderRadius: 9999,
+                                }}
+                            >
+                                {shop.category}
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -118,15 +168,19 @@ export default function ShopDetailPage() {
                 <div
                     className="card"
                     style={{
-                        padding: 12,
+                        padding: "12px 16px",
                         marginBottom: 16,
-                        background: "var(--color-status-pending-bg)",
-                        color: "var(--color-status-pending)",
-                        textAlign: "center",
+                        background: "#fffbeb",
+                        borderColor: "#fde68a",
+                        color: "#92400e",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
                         fontSize: 14,
                     }}
                 >
-                    ร้านนี้ปิดรับออเดอร์ชั่วคราว ยังดูสินค้าได้ตามปกติ แต่สั่งซื้อไม่ได้ตอนนี้
+                    <Icon name="pause" size={18} color="#b45309" />
+                    <span>ร้านนี้ปิดรับออเดอร์ชั่วคราว ยังดูสินค้าได้ตามปกติ แต่ไม่สามารถกดสั่งซื้อได้ในขณะนี้</span>
                 </div>
             )}
 
@@ -134,13 +188,28 @@ export default function ShopDetailPage() {
                 <div
                     style={{
                         display: "grid",
-                        gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+                        gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 150px), 1fr))",
                         gap: 12,
                         alignContent: "start",
                     }}
                 >
                     {products.length === 0 ? (
-                        <p style={{ color: "var(--color-text-muted)" }}>ร้านนี้ยังไม่มีสินค้า</p>
+                        <div
+                            className="card"
+                            style={{
+                                gridColumn: "1 / -1",
+                                padding: "40px 16px",
+                                textAlign: "center",
+                                color: "var(--color-text-muted)",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: 10,
+                            }}
+                        >
+                            <Icon name="box" size={36} color="var(--color-border)" />
+                            <p style={{ margin: 0 }}>ร้านนี้ยังไม่มีสินค้าวางจำหน่าย</p>
+                        </div>
                     ) : (
                         products.map((product) => (
                             <ProductCard

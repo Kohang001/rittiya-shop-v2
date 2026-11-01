@@ -1,5 +1,6 @@
 // src/pages/seller/PendingApprovalPage.jsx
 import { useLocation, Link } from "react-router-dom";
+import Icon from "../../components/ui/Icon";
 
 export default function PendingApprovalPage() {
     const location = useLocation();
@@ -7,9 +8,12 @@ export default function PendingApprovalPage() {
 
     return (
         <div style={{ maxWidth: 480, margin: "40px auto", textAlign: "center", padding: "0 16px" }}>
-            <h2 style={{ marginBottom: 8 }}>สมัครร้านสำเร็จ!</h2>
+            <div style={{ marginBottom: 16 }}>
+                <Icon name="verified-shield" size={54} color="var(--color-primary)" />
+            </div>
+            <h2 style={{ marginBottom: 8, fontSize: "clamp(20px, 4vw, 24px)" }}>เปิดร้านสำเร็จเรียบร้อยแล้ว</h2>
             <p style={{ color: "var(--color-text-muted)", marginBottom: 24 }}>
-                ร้านของคุณอยู่ระหว่างรอการตรวจสอบจากทีมงาน จะใช้เวลาไม่นาน
+                ร้านของคุณผ่านการตรวจสอบและอนุมัติเปิดร้านทันที เริ่มต้นรับออเดอร์ได้เลย
             </p>
 
             <div

@@ -21,8 +21,7 @@ export const adminAuth = getAuth(app);
 
 /**
  * เช็คว่า request นี้มาจาก admin จริงไหม โดยตรวจ ID token จาก header Authorization
- * ใช้ในทุก endpoint ที่ต้องจำกัดสิทธิ์เฉพาะ admin (approveShop, approveProduct, setAdminClaim)
- * @returns {Promise<{uid: string} | null>} คืนค่า uid ถ้าเป็น admin จริง, null ถ้าไม่ใช่
+ * @returns {Promise<{uid: string, email: string, role: string} | null>}
  */
 export async function verifyAdminRequest(req) {
     const authHeader = req.headers.authorization || "";
@@ -32,11 +31,34 @@ export async function verifyAdminRequest(req) {
     try {
         const decoded = await adminAuth.verifyIdToken(idToken);
         if (decoded.admin === true) {
-            return { uid: decoded.uid };
+            return { uid: decoded.uid, email: decoded.email, role: decoded.adminRole || "super" };
         }
         return null;
     } catch (err) {
         console.error("verifyAdminRequest error:", err);
+        return null;
+    }
+}
+
+/**
+ * เช็คว่า request นี้มาจาก Super Admin จริงไหม
+ * บัญชีที่มี claim admin: true แต่ไม่มี adminRole จะถือเป็น super โดยปริยาย (Backward Compatible)
+ * @returns {Promise<import("firebase-admin/auth").DecodedIdToken | null>}
+ */
+export async function verifySuperAdminRequest(req) {
+    const authHeader = req.headers.authorization || "";
+    const idToken = authHeader.replace("Bearer ", "");
+    if (!idToken) return null;
+
+    try {
+        const decoded = await adminAuth.verifyIdToken(idToken);
+        const isSuper = decoded.admin === true && (decoded.adminRole === "super" || !decoded.adminRole);
+        if (isSuper) {
+            return decoded;
+        }
+        return null;
+    } catch (err) {
+        console.error("verifySuperAdminRequest error:", err);
         return null;
     }
 }

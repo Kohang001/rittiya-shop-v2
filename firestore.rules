@@ -1,0 +1,158 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function isSuperAdmin() {
+      return isAdmin() && (
+        !("adminRole" in request.auth.token) || request.auth.token.adminRole == "super"
+      );
+    }
+
+    function isOwner(ownerUid) {
+      return isSignedIn() && request.auth.uid == ownerUid;
+    }
+
+    function isValidProductData(data) {
+      return data.keys().hasOnly([
+              "name", "price", "desc", "imageUrl", "status",
+              "createdAt", "reviewedBy", "reviewedAt", "rejectReason",
+              "isAvailable"
+            ])
+          && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+          && data.price is number && data.price >= 1 && data.price <= 1000000
+          && (!("desc" in data) || (data.desc is string && data.desc.size() <= 2000))
+          && (!("imageUrl" in data) || (data.imageUrl is string && data.imageUrl.size() <= 500))
+          && (!("isAvailable" in data) || data.isAvailable is bool)
+          && data.status in ["approved", "pending", "rejected"];
+    }
+
+    function isValidShopData(data) {
+      return data.keys().hasOnly([
+              "ownerUid", "name", "slogan", "logoUrl", "phone", "ig", "category",
+              "status", "isOpen", "lineUserId", "lineLinkCode", "createdAt",
+              "promptpayId", "bankName", "bankAccountNumber", "bankAccountName",
+              "reviewedBy", "reviewedAt", "rejectReason"
+            ])
+          && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+          && data.phone is string && data.phone.size() == 10
+          && (!("slogan" in data) || (data.slogan is string && data.slogan.size() <= 200))
+          && (!("logoUrl" in data) || (data.logoUrl is string && data.logoUrl.size() <= 500))
+          && (!("ig" in data) || (data.ig is string && data.ig.size() <= 60))
+          && data.category is string && data.category.size() > 0 && data.category.size() <= 60
+          && (!("promptpayId" in data) || (data.promptpayId is string && (data.promptpayId.size() == 0 || data.promptpayId.size() == 10 || data.promptpayId.size() == 13)))
+          && (!("bankName" in data) || (data.bankName is string && data.bankName.size() <= 60))
+          && (!("bankAccountNumber" in data) || (data.bankAccountNumber is string && data.bankAccountNumber.size() <= 30))
+          && (!("bankAccountName" in data) || (data.bankAccountName is string && data.bankAccountName.size() <= 100))
+          && data.status in ["approved", "pending", "rejected"];
+    }
+
+    // ---------- Collection Group Queries (ดึงข้อมูลสินค้าข้ามร้าน) ----------
+    match /{path=**}/products/{productId} {
+      allow read: if resource.data.status in ["approved", "pending"] || isAdmin();
+    }
+
+    match /{path=**}/orders/{orderId} {
+      allow read: if isAdmin();
+    }
+
+    // ---------- shops/{shopId} ----------
+    match /shops/{shopId} {
+      // แสดงร้านค้าที่ผ่านการคัดกรองเนื้อหา (approved หรือ pending) ให้ลูกค้าทุกคนเห็นได้
+      allow read: if resource.data.status in ["approved", "pending"]
+                  || isOwner(resource.data.ownerUid)
+                  || isAdmin();
+
+      // เจ้าของร้านสร้างร้านได้ทันที (ระบบตรวจสอบคำไม่เหมาะสมอนุมัติให้อัตโนมัติ)
+      allow create: if isSignedIn()
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.status in ["pending", "approved"]
+                    && isValidShopData(request.resource.data);
+
+      allow update: if isAdmin()
+                    || (isOwner(resource.data.ownerUid)
+                        && request.resource.data.ownerUid == resource.data.ownerUid
+                        && isValidShopData(request.resource.data));
+
+      allow delete: if isAdmin() || isOwner(resource.data.ownerUid);
+
+      // ---------- products (subcollection) ----------
+      match /products/{productId} {
+        allow read: if resource.data.status in ["approved", "pending"]
+                    || isOwner(get(/databases/$(database)/documents/shops/$(shopId)).data.ownerUid)
+                    || isAdmin();
+
+        allow create: if isOwner(get(/databases/$(database)/documents/shops/$(shopId)).data.ownerUid)
+                      && request.resource.data.status in ["pending", "approved"]
+                      && isValidProductData(request.resource.data);
+
+        allow update: if isAdmin()
+                      || (isOwner(get(/databases/$(database)/documents/shops/$(shopId)).data.ownerUid)
+                          && isValidProductData(request.resource.data));
+
+        allow delete: if isOwner(get(/databases/$(database)/documents/shops/$(shopId)).data.ownerUid)
+                      || isAdmin();
+      }
+
+      // ---------- orders (subcollection) ----------
+      match /orders/{orderId} {
+        allow read: if isOwner(get(/databases/$(database)/documents/shops/$(shopId)).data.ownerUid)
+                    || isAdmin();
+        allow write: if false;
+      }
+    }
+
+    // ---------- feedPosts/{postId} ----------
+    match /feedPosts/{postId} {
+      allow read: if resource.data.status == "approved"
+                  || isOwner(get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.ownerUid)
+                  || isAdmin();
+
+      allow create: if isOwner(get(/databases/$(database)/documents/shops/$(request.resource.data.shopId)).data.ownerUid)
+                    && get(/databases/$(database)/documents/shops/$(request.resource.data.shopId)).data.status in ["approved", "pending"]
+                    && request.resource.data.status == "approved"
+                    && request.resource.data.keys().hasOnly(["shopId", "title", "content", "imageUrl", "status", "createdAt", "shopName", "shopLogoUrl", "reviewedBy", "reviewedAt", "rejectReason"])
+                    && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 100
+                    && request.resource.data.content is string && request.resource.data.content.size() > 0 && request.resource.data.content.size() <= 5000
+                    && (!("imageUrl" in request.resource.data) || (request.resource.data.imageUrl is string && request.resource.data.imageUrl.size() <= 500))
+                    && (!("shopName" in request.resource.data) || (request.resource.data.shopName is string && request.resource.data.shopName.size() <= 100))
+                    && (!("shopLogoUrl" in request.resource.data) || (request.resource.data.shopLogoUrl is string && request.resource.data.shopLogoUrl.size() <= 500));
+
+      allow update: if isAdmin()
+                    || isOwner(get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.ownerUid);
+
+      allow delete: if isOwner(get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.ownerUid)
+                    || isAdmin();
+    }
+
+    // ---------- adminLogs (Audit Trail & Activity Logs) ----------
+    // บันทึกกิจกรรมและข้อผิดพลาดของ Admin — อ่านและสร้างได้เฉพาะ Admin เท่านั้น
+    // ห้ามแก้ไขหรือลบโดยเด็ดขาด (Immutable Audit Log) เพื่อการตรวจสอบย้อนหลังที่โปร่งใส
+    match /adminLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // ---------- config/{docId} & admins/{uid} ----------
+    match /config/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ---------- admins/{uid} ----------
+    // บันทึกระดับสิทธิ์และรหัสผูก LINE ของแอดมินรายบุคคล — อ่านได้เฉพาะ Admin และแก้ไขได้เฉพาะ Super Admin
+    match /admins/{uid} {
+      allow read: if isAdmin();
+      allow write: if isSuperAdmin();
+    }
+  }
+}

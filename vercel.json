@@ -26,6 +26,10 @@
                     "value": "camera=(), microphone=(), geolocation=(), payment=()"
                 },
                 {
+                    "key": "Access-Control-Allow-Origin",
+                    "value": "https://rittiya-shop-v2.vercel.app"
+                },
+                {
                     "key": "Content-Security-Policy",
                     "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://res.cloudinary.com https://*.googleusercontent.com; connect-src 'self' https://*.googleapis.com https://*.google.com https://api.cloudinary.com; font-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self';"
                 }

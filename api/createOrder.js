@@ -18,7 +18,7 @@ function isRateLimited(ip) {
 
 function getClientIp(req) {
     const forwarded = req.headers["x-forwarded-for"];
-    if (forwarded) return forwarded.split(",")[0].trim(); // เอาแค่ IP ตัวแรก ไม่ใช่ทั้งสาย proxy
+    if (forwarded) return forwarded.split(",")[0].trim();
     return req.socket?.remoteAddress || "unknown";
 }
 
@@ -54,7 +54,6 @@ export default async function handler(req, res) {
         const shopRef = adminDb.collection("shops").doc(shopId);
 
         // ---------- Idempotency: ถ้าเคยสร้าง order จาก clientOrderId นี้แล้ว คืนอันเดิมแทนการสร้างซ้ำ ----------
-        // กันปัญหา: ลูกค้ากดยืนยันตอนเน็ตค้าง แล้วเบราว์เซอร์ retry request เดิมซ้ำ
         if (clientOrderId) {
             const existingSnap = await shopRef
                 .collection("orders")
@@ -77,14 +76,14 @@ export default async function handler(req, res) {
             return res.status(404).json({ error: "ไม่พบร้านค้านี้" });
         }
         const shop = shopSnap.data();
-        if (shop.status !== "approved") {
-            return res.status(403).json({ error: "ร้านนี้ยังไม่เปิดให้สั่งซื้อ" });
+        if (shop.status === "rejected") {
+            return res.status(403).json({ error: "ร้านนี้ถูกระงับการให้บริการชั่วคราว" });
         }
         if (shop.isOpen === false) {
             return res.status(403).json({ error: "ร้านนี้ปิดรับออเดอร์ชั่วคราว" });
         }
 
-        // ---------- รวม productId ที่ซ้ำกันเข้าด้วยกันก่อน (กัน Firestore read ซ้ำโดยไม่จำเป็น) ----------
+        // ---------- รวม productId ที่ซ้ำกันเข้าด้วยกันก่อน ----------
         const mergedQtyByProductId = new Map();
         for (const item of items) {
             if (!item.productId || !Number.isFinite(item.qty) || item.qty <= 0) {
@@ -110,8 +109,11 @@ export default async function handler(req, res) {
                 return res.status(400).json({ error: `ไม่พบสินค้า (${productId})` });
             }
             const product = productSnap.data();
-            if (product.status !== "approved") {
-                return res.status(400).json({ error: `สินค้า "${product.name}" ไม่พร้อมขาย` });
+            if (product.status === "rejected") {
+                return res.status(400).json({ error: `สินค้า "${product.name}" ถูกซ่อนหรือไม่พร้อมขาย` });
+            }
+            if (product.isAvailable === false) {
+                return res.status(400).json({ error: `ขออภัย สินค้า "${product.name}" สินค้าหมดชั่วคราว` });
             }
             total += product.price * qty;
             validatedItems.push({ productId, name: product.name, price: product.price, qty });
@@ -133,13 +135,11 @@ export default async function handler(req, res) {
             slipUrl: slipUrl || null,
             slipUploadedAt: slipUrl ? new Date() : null,
             clientOrderId: clientOrderId || null,
-            paymentInfoSnapshot: paymentInfo, // เก็บไว้เผื่อ idempotent retry ต้องคืนค่าเดิมโดยไม่ query shop ซ้ำ
+            paymentInfoSnapshot: paymentInfo,
             createdAt: new Date(),
         });
 
-        // ---------- แยก try/catch เฉพาะส่วน LINE ไม่ให้ error ตรงนี้ทำให้ client คิดว่า order สร้างไม่สำเร็จ ----------
-        // (ก่อนหน้านี้ถ้า fetch ไป LINE โยน exception จะหลุดไป catch ใหญ่ด้านล่าง กลาย
-        //  เป็นตอบ 500 ทั้งที่ order ถูกสร้างไปแล้วจริง — ลูกค้ากดซ้ำแล้วได้ order ซ้ำ)
+        // Push แจ้งเตือนไปยัง LINE ของแม่ค้า
         if (shop.lineUserId) {
             try {
                 const itemsText = validatedItems.map((item) => `- ${item.name} x${item.qty}`).join("\n");

@@ -1,41 +1,105 @@
 // src/components/layout/AdminNav.jsx
-// เมนูเล็กๆ เชื่อมระหว่าง 3 หน้า Admin — ไม่โผล่ใน Navbar หลัก ใช้แค่ภายในโซน Admin เท่านั้น
+// แถบเมนูนำทางสำหรับผู้ดูแลระบบ (Operations & Management Navigation)
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import Icon from "../ui/Icon";
 
-const LINKS = [
-    { to: "/admin/shops", label: "ร้านค้า" },
-    { to: "/admin/products", label: "สินค้ารอตรวจสอบ" },
-    { to: "/admin/orders", label: "ออเดอร์ทั้งหมด" },
-    { to: "/admin/feed", label: "ประกาศ" },
+const BASE_LINKS = [
+    { to: "/admin", label: "ภาพรวม & กิจกรรม", icon: "sparkle", end: true },
+    { to: "/admin/shops", label: "ร้านค้าทั้งหมด", icon: "store" },
+    { to: "/admin/products", label: "สินค้าทั้งหมด", icon: "box" },
+    { to: "/admin/orders", label: "ออเดอร์ทั้งหมด", icon: "receipt" },
+    { to: "/admin/feed", label: "ประกาศข่าวสาร", icon: "megaphone" },
 ];
 
 export default function AdminNav() {
+    const { isSuperAdmin } = useAuth();
+
+    const links = [
+        ...BASE_LINKS,
+        ...(isSuperAdmin
+            ? [{ to: "/admin/roles", label: "จัดการสิทธิ์", icon: "shield" }]
+            : []),
+    ];
+
     return (
-        <div
+        <nav
+            aria-label="Admin Navigation"
             style={{
-                display: "flex",
-                gap: 4,
-                padding: "10px 16px",
                 borderBottom: "1px solid var(--color-border)",
-                background: "var(--color-bg-subtle)",
+                background: "var(--color-bg-surface)",
+                position: "sticky",
+                top: 0,
+                zIndex: 40,
+                boxShadow: "0 1px 2px rgba(0, 0, 0, 0.03)",
             }}
         >
-            {LINKS.map((link) => (
-                <NavLink
-                    key={link.to}
-                    to={link.to}
-                    style={({ isActive }) => ({
-                        padding: "6px 12px",
-                        borderRadius: "var(--radius-sm)",
-                        fontSize: 13,
-                        fontWeight: isActive ? 700 : 400,
-                        color: isActive ? "var(--color-primary)" : "var(--color-text-muted)",
-                        textDecoration: "none",
-                    })}
+            <div
+                style={{
+                    maxWidth: 1040,
+                    margin: "0 auto",
+                    padding: "8px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    overflowX: "auto",
+                    whiteSpace: "nowrap",
+                    WebkitOverflowScrolling: "touch",
+                    scrollbarWidth: "none",
+                }}
+            >
+                <div
+                    style={{
+                        padding: "4px 8px",
+                        marginRight: 6,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: "0.05em",
+                        textTransform: "uppercase",
+                        color: "var(--color-text-muted)",
+                        borderRight: "1px solid var(--color-border)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                    }}
                 >
-                    {link.label}
-                </NavLink>
-            ))}
-        </div>
+                    <span className={`pulse-dot pulse-dot--${isSuperAdmin ? "success" : "info"}`} />
+                    <span>{isSuperAdmin ? "Super Admin" : "Normal Admin"}</span>
+                </div>
+
+                {links.map((link) => (
+                    <NavLink
+                        key={link.to}
+                        to={link.to}
+                        end={link.end}
+                        style={({ isActive }) => ({
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "7px 13px",
+                            borderRadius: "var(--radius-sm)",
+                            fontSize: 13,
+                            fontWeight: isActive ? 600 : 500,
+                            color: isActive ? "#ffffff" : "var(--color-text-muted)",
+                            background: isActive ? "var(--color-primary)" : "transparent",
+                            textDecoration: "none",
+                            transition: "all 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
+                            minHeight: 36,
+                        })}
+                    >
+                        {({ isActive }) => (
+                            <>
+                                <Icon
+                                    name={link.icon}
+                                    size={15}
+                                    color={isActive ? "#ffffff" : "var(--color-text-muted)"}
+                                />
+                                <span>{link.label}</span>
+                            </>
+                        )}
+                    </NavLink>
+                ))}
+            </div>
+        </nav>
     );
 }

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { getAllFeedPostsForAdmin, hideFeedPost, unhideFeedPost } from "../../firebase/firestore";
 import { useToast } from "../../context/ToastContext";
 import AdminNav from "../../components/layout/AdminNav";
+import Breadcrumb from "../../components/ui/Breadcrumb";
 import ConfirmModal from "../../components/ui/ConfirmModal";
 import PageSkeleton from "../../components/ui/PageSkeleton";
 
@@ -26,18 +27,19 @@ export default function AdminFeedPage() {
 
     async function handleConfirmed() {
         const { type, postId } = confirmAction;
+        const post = posts.find((p) => p.id === postId);
         setConfirmAction(null);
         setBusyId(postId);
         try {
             if (type === "hide") {
-                await hideFeedPost(postId);
+                await hideFeedPost(postId, { postTitle: post?.title });
                 showToast("ซ่อนประกาศแล้ว", "success");
             } else {
-                await unhideFeedPost(postId);
+                await unhideFeedPost(postId, { postTitle: post?.title });
                 showToast("ยกเลิกซ่อนแล้ว — โพสต์กลับมาแสดงใน Feed", "success");
             }
             await load();
-        } catch (err) {
+        } catch {
             showToast(type === "hide" ? "ซ่อนประกาศไม่สำเร็จ" : "ยกเลิกซ่อนไม่สำเร็จ", "error");
         } finally {
             setBusyId(null);
@@ -47,8 +49,11 @@ export default function AdminFeedPage() {
     return (
         <div>
             <AdminNav />
-            <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 16px" }}>
-                <h2>ประกาศทั้งหมด</h2>
+            <div style={{ maxWidth: 700, margin: "32px auto", padding: "0 16px" }}>
+                <Breadcrumb items={[{ label: "ภาพรวม", to: "/admin" }, { label: "ประกาศข่าวสาร" }]} />
+                <h1 style={{ fontSize: "clamp(22px, 3.5vw, 26px)", fontWeight: 700, margin: "0 0 6px 0", letterSpacing: "-0.02em" }}>
+                    ประกาศข่าวสารทั้งหมด ({posts.length})
+                </h1>
                 <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 20 }}>
                     ประกาศขึ้นหน้า Feed ทันทีที่สร้างโดยไม่ต้องรออนุมัติ — หน้านี้ใช้ตรวจสอบย้อนหลังและซ่อน/ยกเลิกซ่อนโพสต์
                 </p>

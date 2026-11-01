@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginUser } from "../../firebase/auth";
+import { logAdminAction } from "../../firebase/firestore";
 
 export default function AdminLoginPage() {
     const [email, setEmail] = useState("");
@@ -15,13 +16,23 @@ export default function AdminLoginPage() {
         setError("");
         setLoading(true);
 
-        const { error: authError } = await loginUser(email, password);
+        const { user, error: authError } = await loginUser(email, password);
         setLoading(false);
 
         if (authError) {
             setError(authError);
             return;
         }
+
+        // บันทึกกิจกรรมการเข้าสู่ระบบของ Admin
+        logAdminAction({
+            action: "admin_login",
+            targetType: "auth",
+            detail: `ผู้ดูแลระบบเข้าสู่ระบบสำเร็จ (${email})`,
+            status: "success",
+            actorEmail: email,
+            actorUid: user?.uid,
+        }).catch(() => {});
 
         // ไม่เช็ค isAdmin ตรงนี้ — ปล่อยให้ AdminRoute เป็นคนเช็คและเด้งออกถ้าไม่ใช่ admin
         navigate("/admin/shops");

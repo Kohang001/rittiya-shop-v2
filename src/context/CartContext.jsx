@@ -1,11 +1,30 @@
-// src/context/CartContext.jsx
-import { createContext, useContext, useState } from "react";
+// src/context/CartContext.jsx — With LocalStorage Persistence for Mobile Resilience
+import { createContext, useContext, useEffect, useState } from "react";
 
 const CartContext = createContext(null);
+const STORAGE_KEY = "rittiya_cart_v1";
+
+function loadInitialCart() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) return JSON.parse(saved);
+    } catch {
+        // Safe fallback if localStorage is unavailable or corrupt
+    }
+    return {};
+}
 
 export function CartProvider({ children }) {
     // เก็บตะกร้าแยกตามร้าน: { [shopId]: { [productId]: { product, qty } } }
-    const [cartByShop, setCartByShop] = useState({});
+    const [cartByShop, setCartByShop] = useState(loadInitialCart);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cartByShop));
+        } catch {
+            // ป้องกันข้อผิดพลาดกรณี storage เต็มหรือเปิดโหมดไม่ระบุตัวตน
+        }
+    }, [cartByShop]);
 
     function addItem(shopId, product) {
         setCartByShop((prev) => {
