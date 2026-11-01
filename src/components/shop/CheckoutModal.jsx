@@ -1,5 +1,8 @@
-// src/components/shop/CheckoutModal.jsx — Mobile-First Bottom Sheet + Zero-Emoji
-import React, { useState } from "react";
+// src/components/shop/CheckoutModal.jsx — Mobile-First Bottom Sheet + Zero-Emoji + Pickup Location & Auto-fill
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { saveUserProfile } from "../../firebase/firestore";
 import { generatePromptPayQR } from "../../utils/promptpay";
 import { uploadImage } from "../../cloudinary/upload";
 import { validateImageFile } from "../../utils/validators";
@@ -9,12 +12,26 @@ import Icon from "../ui/Icon";
  * @param {object} paymentInfo - { promptpayId, bankName, bankAccountNumber, bankAccountName }
  */
 export default function CheckoutModal({ shopId, items, total, paymentInfo, onConfirm, onClose }) {
+    const { user, userProfile } = useAuth();
     const [clientOrderId] = useState(() => crypto.randomUUID());
     const [step, setStep] = useState(0); // 0 = ข้อมูล, 1 = ชำระเงิน+สลิป, 2 = สำเร็จ
-    const [customerName, setCustomerName] = useState("");
-    const [customerContact, setCustomerContact] = useState("");
+
+    // ข้อมูลลูกค้า พร้อมดึงข้อมูลอัตโนมัติจากโปรไฟล์ผู้ใช้
+    const [customerName, setCustomerName] = useState(() => userProfile?.displayName || user?.displayName || "");
+    const [customerContact, setCustomerContact] = useState(() => userProfile?.phone || "");
+    const [pickupLocation, setPickupLocation] = useState(() => userProfile?.defaultPickupLocation || "");
+    const [saveToProfile, setSaveToProfile] = useState(true);
     const [consentChecked, setConsentChecked] = useState(false);
     const [error, setError] = useState("");
+
+    // ดึงข้อมูลอัตโนมัติเมื่อ userProfile โหลดเสร็จ
+    useEffect(() => {
+        if (userProfile) {
+            setCustomerName((prev) => prev || userProfile.displayName || "");
+            setCustomerContact((prev) => prev || userProfile.phone || "");
+            setPickupLocation((prev) => prev || userProfile.defaultPickupLocation || "");
+        }
+    }, [userProfile]);
 
     const [slipUrl, setSlipUrl] = useState(null);
     const [slipPreview, setSlipPreview] = useState(null);
@@ -29,7 +46,11 @@ export default function CheckoutModal({ shopId, items, total, paymentInfo, onCon
     function goToPaymentStep(e) {
         e.preventDefault();
         if (!customerName.trim() || !customerContact.trim()) {
-            setError("กรุณากรอกชื่อและช่องทางติดต่อให้ครบ");
+            setError("กรุณากรอกชื่อและช่องทางติดต่อให้ครบถ้วน");
+            return;
+        }
+        if (!pickupLocation.trim()) {
+            setError("กรุณากรอกสถานที่นัดรับสินค้า (เช่น โต๊ะโรงอาหาร, หน้าตึก, หรือห้องเรียน)");
             return;
         }
         if (!consentChecked) {
@@ -77,7 +98,25 @@ export default function CheckoutModal({ shopId, items, total, paymentInfo, onCon
         setSubmitting(true);
         setError("");
         try {
-            const result = await onConfirm({ customerName, customerContact, slipUrl, clientOrderId });
+            const result = await onConfirm({
+                customerName,
+                customerContact,
+                pickupLocation,
+                slipUrl,
+                clientOrderId,
+            });
+
+            // บันทึกข้อมูลกลับเข้าโปรไฟล์ผู้ใช้เพื่อกรอกอัตโนมัติในครั้งถัดไป
+            if (user && saveToProfile) {
+                saveUserProfile(user.uid, {
+                    displayName: customerName.trim(),
+                    phone: customerContact.trim(),
+                    defaultPickupLocation: pickupLocation.trim(),
+                }).catch((profileErr) => {
+                    console.warn("บันทึกข้อมูลโปรไฟล์อัตโนมัติไม่สำเร็จ:", profileErr);
+                });
+            }
+
             setSuccessData(result);
             setStep(2);
         } catch (err) {
@@ -153,19 +192,27 @@ export default function CheckoutModal({ shopId, items, total, paymentInfo, onCon
                         <div
                             style={{
                                 display: "inline-flex",
-                                alignItems: "center",
+                                flexDirection: "column",
+                                alignItems: "flex-start",
                                 gap: 6,
-                                padding: "8px 14px",
+                                padding: "12px 14px",
                                 background: "#ecfdf5",
                                 color: "#065f46",
                                 borderRadius: "var(--radius-sm)",
                                 border: "1px solid #a7f3d0",
                                 fontSize: 13,
+                                width: "100%",
                                 marginBottom: 20,
+                                textAlign: "left",
                             }}
                         >
-                            <Icon name="check" size={16} color="#059669" />
-                            <span>ร้านค้าได้รับข้อมูลและสลิปแล้ว กำลังจัดเตรียมออเดอร์</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
+                                <Icon name="check" size={16} color="#059669" />
+                                <span>ร้านค้าได้รับข้อมูลและสลิปแล้ว กำลังจัดเตรียมออเดอร์</span>
+                            </div>
+                            <div style={{ color: "var(--color-text)", fontSize: 12, marginTop: 4 }}>
+                                📍 สถานที่นัดรับ: <strong>{pickupLocation}</strong>
+                            </div>
                         </div>
                         <button type="button" onClick={onClose} style={{ width: "100%", minHeight: 44, justifyContent: "center" }}>
                             ปิดหน้าต่างนี้
@@ -188,6 +235,47 @@ export default function CheckoutModal({ shopId, items, total, paymentInfo, onCon
                                 <Icon name="x" size={18} />
                             </button>
                         </div>
+
+                        {/* กล่องแจ้งเตือนสถานะการกรอกข้อมูลอัตโนมัติ */}
+                        {user ? (
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    padding: "6px 10px",
+                                    background: "rgba(13, 148, 136, 0.08)",
+                                    border: "1px solid rgba(13, 148, 136, 0.2)",
+                                    borderRadius: "var(--radius-sm)",
+                                    fontSize: 12,
+                                    color: "var(--color-primary)",
+                                    marginBottom: 12,
+                                }}
+                            >
+                                <Icon name="verified-shield" size={14} color="var(--color-primary)" />
+                                <span>ดึงข้อมูลชื่อ เบอร์ และสถานที่นัดรับจากบัญชีของคุณอัตโนมัติ</span>
+                            </div>
+                        ) : (
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    padding: "6px 10px",
+                                    background: "var(--color-bg-subtle)",
+                                    border: "1px solid var(--color-border)",
+                                    borderRadius: "var(--radius-sm)",
+                                    fontSize: 12,
+                                    color: "var(--color-text-muted)",
+                                    marginBottom: 12,
+                                    flexWrap: "wrap",
+                                    gap: 4,
+                                }}
+                            >
+                                <span>สั่งซื้อได้ทันที ไม่ต้องสมัครสมาชิก</span>
+                                <Link to="/login" style={{ fontWeight: 600 }}>เข้าสู่ระบบเพื่อจำข้อมูล</Link>
+                            </div>
+                        )}
 
                         <div
                             style={{
@@ -213,24 +301,53 @@ export default function CheckoutModal({ shopId, items, total, paymentInfo, onCon
                             </div>
                         </div>
 
-                        <label htmlFor="checkout-name">ชื่อผู้สั่งซื้อ (สำหรับจัดส่ง/นัดรับ)</label>
+                        <label htmlFor="checkout-name">
+                            ชื่อผู้สั่งซื้อ (สำหรับจัดส่ง/นัดรับ) <span style={{ color: "var(--color-danger)" }}>*</span>
+                        </label>
                         <input
                             id="checkout-name"
                             value={customerName}
                             onChange={(e) => setCustomerName(e.target.value)}
                             placeholder="ระบุชื่อของคุณ"
                             style={{ display: "block", width: "100%", marginBottom: 12 }}
-                            autoFocus
+                            autoFocus={!customerName}
+                            required
                         />
 
-                        <label htmlFor="checkout-contact">เบอร์โทรศัพท์ หรือ Instagram ID ติดต่อกลับ</label>
+                        <label htmlFor="checkout-contact">
+                            เบอร์โทรศัพท์ หรือ Instagram ID ติดต่อกลับ <span style={{ color: "var(--color-danger)" }}>*</span>
+                        </label>
                         <input
                             id="checkout-contact"
                             value={customerContact}
                             onChange={(e) => setCustomerContact(e.target.value)}
                             placeholder="เช่น 0812345678 หรือ @your_ig"
                             style={{ display: "block", width: "100%", marginBottom: 12 }}
+                            required
                         />
+
+                        <label htmlFor="checkout-pickup">
+                            สถานที่นัดรับสินค้า <span style={{ color: "var(--color-danger)" }}>*</span>
+                        </label>
+                        <input
+                            id="checkout-pickup"
+                            value={pickupLocation}
+                            onChange={(e) => setPickupLocation(e.target.value)}
+                            placeholder="เช่น โต๊ะ 5 โรงอาหาร, หน้าตึก 3 ชั้น 1, ห้อง ม.6/2"
+                            style={{ display: "block", width: "100%", marginBottom: 12 }}
+                            required
+                        />
+
+                        {user && (
+                            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, marginBottom: 12, cursor: "pointer", color: "var(--color-text)" }}>
+                                <input
+                                    type="checkbox"
+                                    checked={saveToProfile}
+                                    onChange={(e) => setSaveToProfile(e.target.checked)}
+                                />
+                                <span>บันทึกชื่อ เบอร์ และสถานที่นัดรับนี้ไว้ใช้ครั้งถัดไปอัตโนมัติ</span>
+                            </label>
+                        )}
 
                         {error && <p style={{ color: "var(--color-danger)", fontSize: 13, marginBottom: 10 }}>{error}</p>}
 
@@ -271,6 +388,22 @@ export default function CheckoutModal({ shopId, items, total, paymentInfo, onCon
                             >
                                 <Icon name="x" size={18} />
                             </button>
+                        </div>
+
+                        {/* ข้อมูลสรุปจุดนัดรับ */}
+                        <div
+                            style={{
+                                padding: "10px 12px",
+                                background: "var(--color-bg-subtle)",
+                                border: "1px solid var(--color-border)",
+                                borderRadius: "var(--radius-sm)",
+                                fontSize: 13,
+                                marginBottom: 14,
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            <div>ผู้สั่ง: <strong>{customerName}</strong> ({customerContact})</div>
+                            <div>สถานที่นัดรับ: <strong style={{ color: "var(--color-primary)" }}>{pickupLocation}</strong></div>
                         </div>
 
                         <p style={{ color: "var(--color-text-muted)", fontSize: 13, marginBottom: 16 }}>

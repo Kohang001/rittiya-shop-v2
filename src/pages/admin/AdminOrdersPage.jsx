@@ -138,6 +138,11 @@ export default function AdminOrdersPage() {
                                     <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
                                         ลูกค้า: <strong style={{ color: "var(--color-text)" }}>{order.customerName}</strong> ({order.customerContact})
                                     </span>
+                                    {order.pickupLocation && (
+                                        <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+                                            · นัดรับ: <strong style={{ color: "var(--color-primary)" }}>{order.pickupLocation}</strong>
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div style={{ padding: "8px 12px", background: "var(--color-bg-subtle)", borderRadius: "var(--radius-sm)" }}>

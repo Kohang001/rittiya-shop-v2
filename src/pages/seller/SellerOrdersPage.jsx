@@ -87,7 +87,7 @@ export default function SellerOrdersPage() {
             return;
         }
 
-        const headers = ["รหัสออเดอร์", "วันที่สั่ง", "ชื่อลูกค้า", "เบอร์/ช่องทางติดต่อ", "รายการสินค้า", "ยอดรวม (บาท)", "สถานะ", "ลิงก์สลิป"];
+        const headers = ["รหัสออเดอร์", "วันที่สั่ง", "ชื่อลูกค้า", "เบอร์/ช่องทางติดต่อ", "สถานที่นัดรับ", "รายการสินค้า", "ยอดรวม (บาท)", "สถานะ", "ลิงก์สลิป"];
         const rows = orders.map((o) => {
             const dateStr = o.createdAt?.toDate ? o.createdAt.toDate().toLocaleString("th-TH") : "";
             const itemsStr = (o.items || []).map((i) => `${i.name} x${i.qty}`).join("; ");
@@ -97,6 +97,7 @@ export default function SellerOrdersPage() {
                 `"${dateStr}"`,
                 `"${(o.customerName || "").replace(/"/g, '""')}"`,
                 `"${(o.customerContact || "").replace(/"/g, '""')}"`,
+                `"${(o.pickupLocation || "").replace(/"/g, '""')}"`,
                 `"${itemsStr.replace(/"/g, '""')}"`,
                 o.total || 0,
                 `"${statusText}"`,
@@ -250,9 +251,15 @@ export default function SellerOrdersPage() {
                                     </div>
                                 </div>
 
-                                <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "var(--color-text-muted)" }}>
-                                    ช่องทางติดต่อ: <strong>{order.customerContact}</strong>
-                                </p>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: 14, margin: "0 0 10px 0", fontSize: 13, color: "var(--color-text-muted)" }}>
+                                    <div>ช่องทางติดต่อ: <strong style={{ color: "var(--color-text)" }}>{order.customerContact}</strong></div>
+                                    {order.pickupLocation && (
+                                        <div>
+                                            <span>📍 สถานที่นัดรับ: </span>
+                                            <strong style={{ color: "var(--color-primary)" }}>{order.pickupLocation}</strong>
+                                        </div>
+                                    )}
+                                </div>
 
                                 <div style={{ padding: "8px 12px", background: "var(--color-bg-subtle)", borderRadius: "var(--radius-sm)", marginBottom: 12 }}>
                                     <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>

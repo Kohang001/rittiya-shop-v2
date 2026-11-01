@@ -9,6 +9,14 @@ export function isValidPhone(value) {
     return /^[0-9]{10}$/.test(digitsOnly);
 }
 
+export function validatePhone(value) {
+    if (!value) return { valid: false, error: "กรุณากรอกเบอร์โทรศัพท์" };
+    if (!isValidPhone(value)) {
+        return { valid: false, error: "เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลักพอดี" };
+    }
+    return { valid: true, error: null };
+}
+
 /**
  * เช็คว่าเป็นเลขพร้อมเพย์ถูกต้องไหม (10 หลักสำหรับเบอร์โทร หรือ 13 หลักสำหรับเลขบัตรประชาชน)
  */

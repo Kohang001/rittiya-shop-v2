@@ -15,6 +15,9 @@ const FeedPage = lazy(() => import("./pages/public/FeedPage"));
 const ShopDetailPage = lazy(() => import("./pages/public/ShopDetailPage"));
 const ContactPage = lazy(() => import("./pages/public/ContactPage"));
 const SearchPage = lazy(() => import("./pages/public/SearchPage"));
+const LoginPage = lazy(() => import("./pages/public/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/public/RegisterPage"));
+const ProfilePage = lazy(() => import("./pages/public/ProfilePage"));
 
 // Seller Portal (แยก Chunk เฉพาะแม่ค้า)
 const SellerLoginPage = lazy(() => import("./pages/seller/SellerLoginPage"));
@@ -57,6 +60,16 @@ function App() {
                         <Route path="/contact" element={<ContactPage />} />
                         <Route path="/search" element={<SearchPage />} />
                         <Route path="/shop/:shopId" element={<ShopDetailPage />} />
+                        <Route path="/login" element={<LoginPage />} />
+                        <Route path="/register" element={<RegisterPage />} />
+                        <Route
+                            path="/profile"
+                            element={
+                                <ProtectedRoute>
+                                    <ProfilePage />
+                                </ProtectedRoute>
+                            }
+                        />
 
                         {/* ---------- Seller Routes ---------- */}
                         <Route path="/seller/login" element={<SellerLoginPage />} />

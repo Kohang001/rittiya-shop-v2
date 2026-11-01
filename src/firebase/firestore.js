@@ -736,3 +736,44 @@ export async function saveAdminLinePairingCode(uid, email, role, lineLinkCode) {
         return false;
     }
 }
+
+/**
+ * ดึงข้อมูลโปรไฟล์ผู้ใช้ทั่วไป (ชื่อ, เบอร์ติดต่อ, สถานที่นัดรับประจำ)
+ */
+export async function getUserProfile(uid) {
+    if (!uid) return null;
+    try {
+        const ref = doc(db, "users", uid);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+            return { id: snap.id, ...snap.data() };
+        }
+        return null;
+    } catch (err) {
+        console.warn("getUserProfile error:", err);
+        return null;
+    }
+}
+
+/**
+ * บันทึกหรืออัปเดตข้อมูลโปรไฟล์ผู้ใช้ทั่วไป
+ */
+export async function saveUserProfile(uid, data) {
+    if (!uid) return false;
+    try {
+        const ref = doc(db, "users", uid);
+        await setDoc(
+            ref,
+            {
+                uid,
+                ...data,
+                updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+        );
+        return true;
+    } catch (err) {
+        console.error("saveUserProfile error:", err);
+        throw err;
+    }
+}

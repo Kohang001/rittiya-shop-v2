@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { shopId, items, customerName, customerContact, slipUrl, clientOrderId } = req.body;
+        const { shopId, items, customerName, customerContact, pickupLocation, slipUrl, clientOrderId } = req.body;
 
         if (!shopId || typeof shopId !== "string") {
             return res.status(400).json({ error: "ไม่พบร้านค้า" });
@@ -46,6 +46,9 @@ export default async function handler(req, res) {
         }
         if (!customerName?.trim() || !customerContact?.trim()) {
             return res.status(400).json({ error: "กรุณากรอกชื่อและช่องทางติดต่อ" });
+        }
+        if (!pickupLocation?.trim()) {
+            return res.status(400).json({ error: "กรุณากรอกสถานที่นัดรับสินค้า" });
         }
         if (slipUrl && !slipUrl.startsWith("https://res.cloudinary.com/")) {
             return res.status(400).json({ error: "รูปสลิปไม่ถูกต้อง" });
@@ -129,6 +132,7 @@ export default async function handler(req, res) {
         const orderRef = await shopRef.collection("orders").add({
             customerName: String(customerName).trim().slice(0, 100),
             customerContact: String(customerContact).trim().slice(0, 100),
+            pickupLocation: String(pickupLocation).trim().slice(0, 200),
             items: validatedItems,
             total,
             status: slipUrl ? "slip_uploaded" : "pending",
@@ -150,10 +154,11 @@ export default async function handler(req, res) {
                             (slipUrl
                                 ? `💳 มีคำสั่งซื้อใหม่ พร้อมสลิปการโอนเงิน\n`
                                 : `🕐 มีคำสั่งซื้อใหม่ — รอลูกค้าชำระเงิน\n`) +
-                            `ผู้สั่ง: ${customerName}\n` +
-                            `ติดต่อ: ${customerContact}\n\n` +
-                            `รายการ:\n${itemsText}\n\n` +
-                            `ยอดรวม: ${total.toLocaleString()} บาท` +
+                            `👤 ผู้สั่ง: ${customerName}\n` +
+                            `📞 ติดต่อ: ${customerContact}\n` +
+                            `📍 นัดรับที่: ${pickupLocation}\n\n` +
+                            `📦 รายการ:\n${itemsText}\n\n` +
+                            `💰 ยอดรวม: ${total.toLocaleString()} บาท` +
                             (slipUrl ? `\n\nกรุณาตรวจสอบสลิปด้านล่าง แล้วกดยืนยันในหน้า Dashboard` : "") +
                             `\nhttps://rittiya-shop-v2.vercel.app/seller/dashboard`,
                     },

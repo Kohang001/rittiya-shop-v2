@@ -66,7 +66,7 @@ export default function ShopDetailPage() {
         showToast(`เพิ่ม "${product.name}" ลงตะกร้าแล้ว`, "success");
     }
 
-    async function handleConfirmOrder({ customerName, customerContact, slipUrl, clientOrderId }) {
+    async function handleConfirmOrder({ customerName, customerContact, pickupLocation, slipUrl, clientOrderId }) {
         const response = await fetch("/api/createOrder", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -75,6 +75,7 @@ export default function ShopDetailPage() {
                 items: cartItems.map(({ product, qty }) => ({ productId: product.id, qty })),
                 customerName,
                 customerContact,
+                pickupLocation,
                 slipUrl,
                 clientOrderId,
             }),
