@@ -9,15 +9,14 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.admin == true ||
+        request.auth.token.email == "nathwrrthsumphlxy@gmail.com" ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
     }
 
     function isSuperAdmin() {
       return isAdmin() && (
-        request.auth.token.adminRole == "super" ||
-        (!("adminRole" in request.auth.token) && !exists(/databases/$(database)/documents/admins/$(request.auth.uid))) ||
+        request.auth.token.email == "nathwrrthsumphlxy@gmail.com" ||
         (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == "super")
       );
     }

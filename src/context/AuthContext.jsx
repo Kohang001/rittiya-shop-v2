@@ -1,9 +1,11 @@
-// src/context/AuthContext.jsx — With Super Admin, Normal Admin & User Profile Auto-fill Support
+// src/context/AuthContext.jsx — With Real-Time Role Grant & Revocation Support
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { watchAuthState } from "../firebase/auth";
 import { getUserProfile } from "../firebase/firestore";
 import { db } from "../firebase/config";
+
+const MASTER_ADMIN_EMAIL = "nathwrrthsumphlxy@gmail.com";
 
 const AuthContext = createContext(null);
 
@@ -20,30 +22,39 @@ export function AuthProvider({ children }) {
         const target = forcedUser || user;
         if (!target) return false;
         try {
-            // 1. ลอง Force refresh token จาก Firebase Auth
-            const tokenResult = await target.getIdTokenResult(true);
-            if (tokenResult.claims.admin === true) {
-                const role = tokenResult.claims.adminRole || "super";
-                setIsAdmin(true);
-                setAdminRole(role);
-                setIsSuperAdmin(role === "super");
-                setIsNormalAdmin(role === "normal");
-                return true;
-            }
-            // 2. ตรวจสอบจาก Firestore admins/{uid} โดยตรง
+            const isMaster = target.email?.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
+
+            // Single Source of Truth: ตรวจสอบจาก Firestore admins/{uid} โดยตรง
             const adminDocSnap = await getDoc(doc(db, "admins", target.uid));
             if (adminDocSnap.exists()) {
                 const adminData = adminDocSnap.data();
                 if (adminData.role === "super" || adminData.role === "normal") {
                     setIsAdmin(true);
                     setAdminRole(adminData.role);
-                    setIsSuperAdmin(adminData.role === "super");
-                    setIsNormalAdmin(adminData.role === "normal");
+                    setIsSuperAdmin(adminData.role === "super" || isMaster);
+                    setIsNormalAdmin(adminData.role === "normal" && !isMaster);
+                    target.getIdTokenResult(true).catch(() => {});
                     return true;
                 }
             }
+
+            if (isMaster) {
+                setIsAdmin(true);
+                setAdminRole("super");
+                setIsSuperAdmin(true);
+                setIsNormalAdmin(false);
+                return true;
+            }
+
+            // ถ้าไม่มีเอกสารใน admins/{uid} และไม่ใช่ Master -> ปลดสิทธิ์ทันที
+            setIsAdmin(false);
+            setAdminRole(null);
+            setIsSuperAdmin(false);
+            setIsNormalAdmin(false);
+            target.getIdTokenResult(true).catch(() => {});
             return false;
-        } catch {
+        } catch (err) {
+            console.warn("checkAdminStatus error:", err);
             return false;
         }
     }, [user]);
@@ -65,45 +76,69 @@ export function AuthProvider({ children }) {
     }, [user?.uid]);
 
     useEffect(() => {
+        let adminUnsub = null;
+
         // onAuthStateChanged ทำงานทุกครั้งที่สถานะ login เปลี่ยน (login/logout/refresh หน้า)
-        const unsubscribe = watchAuthState(async (firebaseUser) => {
+        const authUnsub = watchAuthState(async (firebaseUser) => {
+            if (adminUnsub) {
+                adminUnsub();
+                adminUnsub = null;
+            }
+
             if (firebaseUser) {
                 setUser(firebaseUser);
 
                 // ดึงข้อมูลโปรไฟล์ผู้ใช้ทั่วไป (ชื่อ, เบอร์, สถานที่นัดรับ)
                 refreshUserProfile(firebaseUser.uid);
 
-                // ดึง custom claim จาก ID token เพื่อเช็คระดับขั้น Admin
-                let tokenResult = await firebaseUser.getIdTokenResult();
-                let hasAdminClaim = tokenResult.claims.admin === true;
-                let role = tokenResult.claims.adminRole || (hasAdminClaim ? "super" : null);
+                const isMaster = firebaseUser.email?.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
 
-                // ตรวจสอบเอกสาร Firestore admins/{uid} เผื่อ token claim ยังไม่ได้ refresh ทันที
-                if (!hasAdminClaim) {
-                    try {
-                        const adminDocSnap = await getDoc(doc(db, "admins", firebaseUser.uid));
-                        if (adminDocSnap.exists()) {
-                            const adminData = adminDocSnap.data();
-                            if (adminData.role === "super" || adminData.role === "normal") {
-                                hasAdminClaim = true;
-                                role = adminData.role;
-                                // Force refresh token ในเบื้องหลังเพื่อให้ได้ claims ล่าสุด
-                                firebaseUser.getIdTokenResult(true).then((refreshed) => {
-                                    if (refreshed.claims.admin === true) {
-                                        setAdminRole(refreshed.claims.adminRole || role);
-                                    }
-                                }).catch(() => {});
-                            }
+                // ติดตั้ง Real-Time Listener กับเอกสาร admins/{uid} ใน Firestore
+                // ช่วยให้การให้สิทธิ์ หรือการปลดสิทธิ์ Admin เกิดขึ้นทันทีใน < 1 วินาที (เกือบ Real-Time)
+                adminUnsub = onSnapshot(
+                    doc(db, "admins", firebaseUser.uid),
+                    (docSnap) => {
+                        if (docSnap.exists() && (docSnap.data().role === "super" || docSnap.data().role === "normal")) {
+                            const role = docSnap.data().role;
+                            setIsAdmin(true);
+                            setAdminRole(role);
+                            setIsSuperAdmin(role === "super" || isMaster);
+                            setIsNormalAdmin(role === "normal" && !isMaster);
+                            // Refresh Token เบื้องหลังเพื่อให้ claims ซิงค์กัน
+                            firebaseUser.getIdTokenResult(true).catch(() => {});
+                        } else if (isMaster) {
+                            // Master Super Admin หลักมีสิทธิ์ตลอดกาล
+                            setIsAdmin(true);
+                            setAdminRole("super");
+                            setIsSuperAdmin(true);
+                            setIsNormalAdmin(false);
+                        } else {
+                            // ปลดสิทธิ์ทันทีแบบ Real-Time เมื่อเอกสารถูกลบใน Firestore
+                            setIsAdmin(false);
+                            setAdminRole(null);
+                            setIsSuperAdmin(false);
+                            setIsNormalAdmin(false);
+                            // สั่ง Force refresh Token ทันทีเพื่อล้าง custom claims ที่แคชอยู่ในเบราว์เซอร์
+                            firebaseUser.getIdTokenResult(true).catch(() => {});
                         }
-                    } catch (err) {
-                        console.warn("Check admins collection error:", err);
+                        setLoading(false);
+                    },
+                    (err) => {
+                        console.warn("Real-time admin listener error:", err);
+                        if (isMaster) {
+                            setIsAdmin(true);
+                            setAdminRole("super");
+                            setIsSuperAdmin(true);
+                            setIsNormalAdmin(false);
+                        } else {
+                            setIsAdmin(false);
+                            setAdminRole(null);
+                            setIsSuperAdmin(false);
+                            setIsNormalAdmin(false);
+                        }
+                        setLoading(false);
                     }
-                }
-
-                setIsAdmin(hasAdminClaim);
-                setAdminRole(role);
-                setIsSuperAdmin(hasAdminClaim && role === "super");
-                setIsNormalAdmin(hasAdminClaim && role === "normal");
+                );
             } else {
                 setUser(null);
                 setUserProfile(null);
@@ -111,11 +146,14 @@ export function AuthProvider({ children }) {
                 setAdminRole(null);
                 setIsSuperAdmin(false);
                 setIsNormalAdmin(false);
+                setLoading(false);
             }
-            setLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => {
+            authUnsub();
+            if (adminUnsub) adminUnsub();
+        };
     }, [refreshUserProfile]);
 
     const value = {

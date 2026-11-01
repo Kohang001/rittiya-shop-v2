@@ -19,8 +19,10 @@ const app = getAdminApp();
 export const adminDb = getFirestore(app);
 export const adminAuth = getAuth(app);
 
+const MASTER_ADMIN_EMAIL = "nathwrrthsumphlxy@gmail.com";
+
 /**
- * เช็คว่า request นี้มาจาก admin จริงไหม โดยตรวจ ID token จาก header Authorization
+ * เช็คว่า request นี้มาจาก admin จริงไหม โดยตรวจ ID token และเอกสาร admins/{uid} ใน Firestore แบบ Real-Time
  * @returns {Promise<{uid: string, email: string, role: string} | null>}
  */
 export async function verifyAdminRequest(req) {
@@ -30,8 +32,18 @@ export async function verifyAdminRequest(req) {
 
     try {
         const decoded = await adminAuth.verifyIdToken(idToken);
-        if (decoded.admin === true) {
-            return { uid: decoded.uid, email: decoded.email, role: decoded.adminRole || "super" };
+        const isMaster = decoded.email?.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
+        if (isMaster) {
+            return { uid: decoded.uid, email: decoded.email, role: "super" };
+        }
+
+        // Single Source of Truth: ตรวจสอบเอกสารใน Firestore admins/{uid} เพื่อรองรับการปลดสิทธิ์ทันที
+        const adminDoc = await adminDb.collection("admins").doc(decoded.uid).get();
+        if (adminDoc.exists) {
+            const data = adminDoc.data();
+            if (data.role === "super" || data.role === "normal") {
+                return { uid: decoded.uid, email: decoded.email, role: data.role };
+            }
         }
         return null;
     } catch (err) {
@@ -41,8 +53,7 @@ export async function verifyAdminRequest(req) {
 }
 
 /**
- * เช็คว่า request นี้มาจาก Super Admin จริงไหม
- * บัญชีที่มี claim admin: true แต่ไม่มี adminRole จะถือเป็น super โดยปริยาย (Backward Compatible)
+ * เช็คว่า request นี้มาจาก Super Admin จริงไหม โดยตรวจแบบ Real-Time จาก Firestore
  * @returns {Promise<import("firebase-admin/auth").DecodedIdToken | null>}
  */
 export async function verifySuperAdminRequest(req) {
@@ -52,8 +63,14 @@ export async function verifySuperAdminRequest(req) {
 
     try {
         const decoded = await adminAuth.verifyIdToken(idToken);
-        const isSuper = decoded.admin === true && (decoded.adminRole === "super" || !decoded.adminRole);
-        if (isSuper) {
+        const isMaster = decoded.email?.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
+        if (isMaster) {
+            return decoded;
+        }
+
+        // Single Source of Truth: ต้องมีเอกสารใน admins/{uid} และ role เป็น super เท่านั้น
+        const adminDoc = await adminDb.collection("admins").doc(decoded.uid).get();
+        if (adminDoc.exists && adminDoc.data().role === "super") {
             return decoded;
         }
         return null;

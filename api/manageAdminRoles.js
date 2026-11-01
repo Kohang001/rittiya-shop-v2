@@ -31,21 +31,26 @@ export default async function handler(req, res) {
                 }
             });
 
-            // 4. ประกอบข้อมูล
+            // 4. ประกอบข้อมูล โดยใช้ Firestore admins collection เป็น Single Source of Truth
             const users = listUsersResult.users.map((u) => {
-                const adminData = adminsMap[u.uid] || {};
+                const adminData = adminsMap[u.uid] || null;
                 const shopData = shopsMap[u.uid] || null;
-                const claims = u.customClaims || {};
-                const isAdmin = claims.admin === true;
-                const role = claims.adminRole || (isAdmin ? "super" : "user");
+                const isMaster = u.email?.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
+
+                let role = "user";
+                if (isMaster) {
+                    role = "super";
+                } else if (adminData && (adminData.role === "super" || adminData.role === "normal")) {
+                    role = adminData.role;
+                }
 
                 return {
                     uid: u.uid,
                     email: u.email || "ไม่มีอีเมล",
                     role,
                     shop: shopData,
-                    lineUserId: adminData.lineUserId || null,
-                    lineLinkCode: adminData.lineLinkCode || null,
+                    lineUserId: adminData?.lineUserId || null,
+                    lineLinkCode: adminData?.lineLinkCode || null,
                     createdAt: u.metadata?.creationTime || null,
                     lastSignInTime: u.metadata?.lastSignInTime || null,
                 };
@@ -189,14 +194,21 @@ export default async function handler(req, res) {
             const targetUser = await adminAuth.getUser(targetUid);
 
             if (newRole === "user") {
-                // ถอดสิทธิ์แอดมิน
+                // ถอดสิทธิ์แอดมินใน Firebase Auth
                 await adminAuth.setCustomUserClaims(targetUid, {
                     admin: false,
                     adminRole: null,
                 });
 
-                // ลบเอกสารออกจากคอลเลกชัน admins
+                // ลบเอกสารออกจากคอลเลกชัน admins (Single Source of Truth)
                 await adminDb.collection("admins").doc(targetUid).delete();
+
+                // บังคับยกเลิก Refresh Tokens เพื่อให้ Token เดิมหมดสิทธิ์ทันที
+                try {
+                    await adminAuth.revokeRefreshTokens(targetUid);
+                } catch (tErr) {
+                    console.warn("revokeRefreshTokens error:", tErr);
+                }
 
                 // บันทึก Audit Log
                 await adminDb.collection("adminLogs").add({
