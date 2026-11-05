@@ -140,12 +140,16 @@ export default function SellerLineLinkPage() {
                             background: "var(--color-bg-subtle)",
                             fontSize: 13,
                             color: "var(--color-text-muted)",
-                            marginBottom: 20,
+                            marginBottom: 14,
                         }}
                     >
                         <Icon name="shield" size={14} color="var(--color-success)" />
                         รหัสเชื่อมต่อเดิมถูกล้างทิ้งอัตโนมัติแล้วเพื่อความปลอดภัย (One-Time Code)
                     </div>
+
+                    <p style={{ margin: "0 0 20px 0", fontSize: 13, color: "#d97706" }}>
+                        💡 คำสั่งยกเลิกผูกในแชท: สามารถพิมพ์คำว่า <strong>unlink</strong> ใน LINE เพื่อยกเลิกการเชื่อมต่อได้ทันที
+                    </p>
 
                     <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
                         <button

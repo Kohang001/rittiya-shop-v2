@@ -23,6 +23,7 @@ export default function AdminRolesPage() {
     const [saving, setSaving] = useState(false);
     const [pairingModalData, setPairingModalData] = useState(null); // { email, role, lineLinkCode }
     const [copied, setCopied] = useState(false);
+    const [myProfile, setMyProfile] = useState(null);
 
     useEffect(() => {
         loadUsers();
@@ -37,13 +38,61 @@ export default function AdminRolesPage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "โหลดรายชื่อผู้ใช้ไม่สำเร็จ");
+            if (!res.ok) throw new Error(data.error || "โหลดข้อมูลไม่สำเร็จ");
             setUsers(data.users || []);
+            setMyProfile(data.myProfile || null);
         } catch (err) {
             console.error("loadUsers error:", err);
             showToast(err.message, "error");
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function handleResetMyLine() {
+        setSaving(true);
+        try {
+            const token = await user.getIdToken();
+            const res = await fetch("/api/manageAdminRoles", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ action: "reset_my_line" }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "ขอรหัสใหม่ไม่สำเร็จ");
+            showToast("สร้างรหัสเชื่อมต่อชุดใหม่เรียบร้อยแล้ว", "success");
+            await loadUsers();
+        } catch (err) {
+            showToast(err.message, "error");
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    async function handleUnlinkMyLine() {
+        if (!window.confirm("ยืนยันยกเลิกการเชื่อมต่อ LINE? คุณจะไม่ได้รับการแจ้งเตือนทาง LINE จนกว่าจะผูกใหม่")) return;
+        setSaving(true);
+        try {
+            const token = await user.getIdToken();
+            const res = await fetch("/api/manageAdminRoles", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ action: "unlink_my_line" }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "ยกเลิกไม่สำเร็จ");
+            showToast("ยกเลิกการเชื่อมต่อ LINE เรียบร้อยแล้ว", "info");
+            await loadUsers();
+        } catch (err) {
+            showToast(err.message, "error");
+        } finally {
+            setSaving(false);
         }
     }
 
@@ -206,16 +255,248 @@ export default function AdminRolesPage() {
     }, [users, searchQuery, activeTab]);
 
     if (!isSuperAdmin) {
+        const isConnected = Boolean(myProfile?.lineUserId);
+
         return (
             <div>
                 <AdminNav />
-                <div style={{ maxWidth: 640, margin: "60px auto", textAlign: "center", padding: "0 16px" }}>
-                    <Icon name="shield-alert" size={48} color="var(--color-danger)" />
-                    <h2 style={{ margin: "16px 0 8px 0" }}>การเข้าถึงถูกจำกัดสิทธิ์</h2>
-                    <p style={{ color: "var(--color-text-muted)", fontSize: 14 }}>
-                        หน้านี้สงวนสิทธิ์เฉพาะ <strong>Super Admin</strong> เท่านั้น (Normal Admin ไม่สามารถเข้าถึงหรือแต่งตั้งสิทธิ์ได้)
-                    </p>
-                </div>
+
+                <main style={{ maxWidth: 640, margin: "32px auto", padding: "0 16px" }}>
+                    <Breadcrumb items={[{ label: "ภาพรวม", to: "/admin" }, { label: "LINE แอดมิน" }]} />
+
+                    <div style={{ marginBottom: 24 }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                            <span
+                                style={{
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    padding: "2px 8px",
+                                    borderRadius: "var(--radius-sm)",
+                                    background: "rgba(14, 165, 233, 0.12)",
+                                    color: "#0ea5e9",
+                                    border: "1px solid rgba(14, 165, 233, 0.25)",
+                                }}
+                            >
+                                NORMAL ADMIN PROFILE
+                            </span>
+                        </div>
+                        <h1 style={{ fontSize: "clamp(20px, 3vw, 24px)", fontWeight: 700, margin: "0 0 6px 0" }}>
+                            การเชื่อมต่อ LINE ผู้ดูแลระบบ
+                        </h1>
+                        <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-muted)" }}>
+                            บัญชี: <strong>{user?.email}</strong> · จัดการการผูกบัญชี LINE สำหรับรับแจ้งเตือนร้านค้าและสินค้าใหม่
+                        </p>
+                    </div>
+
+                    {/* กล่องคำสั่งยกเลิกกำกับหน้าแอดมิน */}
+                    <div
+                        style={{
+                            padding: "12px 16px",
+                            borderRadius: "var(--radius-sm)",
+                            background: "rgba(245, 158, 11, 0.08)",
+                            border: "1px solid rgba(245, 158, 11, 0.25)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            marginBottom: 20,
+                            fontSize: 13,
+                            color: "#b45309",
+                        }}
+                    >
+                        <Icon name="info" size={16} />
+                        <div>
+                            <strong>คำสั่งยกเลิกผูกในแชท:</strong> หากต้องการยกเลิกการเชื่อมต่อ ให้พิมพ์คำว่า{" "}
+                            <code style={{ background: "#fff", padding: "2px 6px", borderRadius: 4, fontWeight: 700, color: "#d97706" }}>
+                                unlink
+                            </code>{" "}
+                            ในแชท LINE OA ได้ทันที
+                        </div>
+                    </div>
+
+                    {isConnected ? (
+                        <div
+                            className="card"
+                            style={{
+                                padding: 24,
+                                textAlign: "center",
+                                border: "1px solid rgba(16, 185, 129, 0.3)",
+                                background: "rgba(16, 185, 129, 0.04)",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: 48,
+                                    height: 48,
+                                    borderRadius: "50%",
+                                    background: "rgba(16, 185, 129, 0.12)",
+                                    color: "var(--color-success)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    margin: "0 auto 12px",
+                                }}
+                            >
+                                <Icon name="check-circle" size={26} color="var(--color-success)" />
+                            </div>
+                            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+                                เชื่อมต่อ LINE เรียบร้อยแล้ว
+                            </h3>
+                            <p style={{ margin: "8px 0 16px", fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+                                บัญชีผู้ดูแลระบบของคุณผูกกับ LINE Official Account แล้ว<br />
+                                คุณจะได้รับการแจ้งเตือนร้านใหม่และสินค้าใหม่ทาง LINE ทันที
+                            </p>
+
+                            <div
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    padding: "6px 12px",
+                                    borderRadius: "var(--radius-sm)",
+                                    background: "var(--color-bg-subtle)",
+                                    fontSize: 12,
+                                    color: "var(--color-text-muted)",
+                                    marginBottom: 20,
+                                }}
+                            >
+                                <Icon name="shield" size={14} color="var(--color-success)" />
+                                รหัสเชื่อมต่อเดิมถูกล้างทิ้งอัตโนมัติแล้ว (One-Time Token)
+                            </div>
+
+                            <div>
+                                <button
+                                    type="button"
+                                    onClick={handleUnlinkMyLine}
+                                    disabled={saving}
+                                    style={{
+                                        padding: "8px 16px",
+                                        borderRadius: "var(--radius-sm)",
+                                        border: "1px solid var(--color-border)",
+                                        background: "var(--color-bg-surface)",
+                                        color: "var(--color-danger, #ef4444)",
+                                        fontSize: 13,
+                                        fontWeight: 500,
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    {saving ? "กำลังดำเนินการ..." : "ยกเลิกการเชื่อมต่อ LINE"}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div
+                            className="card"
+                            style={{
+                                padding: 24,
+                                textAlign: "center",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                            }}
+                        >
+                            <h3 style={{ fontSize: 15, margin: "0 0 12px 0", fontWeight: 600 }}>
+                                สแกน QR Code เพื่อเปิดแชท LINE Official Account
+                            </h3>
+
+                            <img
+                                src="/line-qr.png"
+                                alt="LINE Official Account QR Code"
+                                style={{
+                                    width: 180,
+                                    height: 180,
+                                    objectFit: "contain",
+                                    borderRadius: "var(--radius-md)",
+                                    border: "1px solid var(--color-border)",
+                                    padding: 8,
+                                    background: "#fff",
+                                    marginBottom: 16,
+                                }}
+                            />
+
+                            <h3 style={{ fontSize: 15, margin: "0 0 6px 0", fontWeight: 600 }}>
+                                ส่งรหัส Admin รูปแบบตายตัวด้านล่างนี้ในแชท:
+                            </h3>
+                            <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "0 0 16px 0", maxWidth: 360 }}>
+                                กรุณาพิมพ์รหัสให้ครบทั้งตัวอักษร <strong>ADMIN-</strong> และตัวเลข 6 หลัก (ใช้ได้ครั้งเดียวเพื่อความปลอดภัย)
+                            </p>
+
+                            {myProfile?.lineLinkCode ? (
+                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+                                    <div
+                                        style={{
+                                            background: "var(--color-bg-subtle)",
+                                            border: "2px dashed var(--color-primary)",
+                                            borderRadius: "var(--radius-md)",
+                                            padding: "10px 24px",
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: 12,
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontSize: 24,
+                                                fontWeight: 800,
+                                                letterSpacing: 2,
+                                                color: "var(--color-primary)",
+                                                fontFamily: "monospace",
+                                            }}
+                                        >
+                                            {myProfile.lineLinkCode}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleCopyCode(myProfile.lineLinkCode)}
+                                            style={{
+                                                background: "none",
+                                                border: "1px solid var(--color-border)",
+                                                borderRadius: "var(--radius-sm)",
+                                                padding: "6px 10px",
+                                                cursor: "pointer",
+                                                fontSize: 12,
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                gap: 4,
+                                                color: copied ? "var(--color-success)" : "var(--color-text-muted)",
+                                            }}
+                                        >
+                                            <Icon name={copied ? "check" : "copy"} size={14} />
+                                            {copied ? "คัดลอกแล้ว" : "คัดลอก"}
+                                        </button>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleResetMyLine}
+                                        disabled={saving}
+                                        style={{
+                                            background: "none",
+                                            border: "none",
+                                            color: "var(--color-text-muted)",
+                                            fontSize: 12,
+                                            cursor: "pointer",
+                                            textDecoration: "underline",
+                                            padding: 4,
+                                        }}
+                                    >
+                                        {saving ? "กำลังสร้างรหัส..." : "รหัสหมดอายุหรือไม่ทำงาน? ขอรหัสเชื่อมต่อชุดใหม่"}
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleResetMyLine}
+                                    disabled={saving}
+                                    className="nav-link-btn"
+                                    style={{ justifyContent: "center", padding: "8px 20px", fontSize: 13 }}
+                                >
+                                    <Icon name="refresh" size={14} />
+                                    {saving ? "กำลังสร้างรหัส..." : "ขอรหัสเชื่อมต่อ LINE (รหัสใช้ครั้งเดียว)"}
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </main>
             </div>
         );
     }
@@ -293,6 +574,139 @@ export default function AdminRolesPage() {
                         >
                             <Icon name="sparkle" size={13} color="var(--color-primary)" /> รีเฟรชรายชื่อ
                         </button>
+                    </div>
+                </div>
+
+                {/* Super Admin Personal LINE Connection Banner */}
+                <div
+                    className="card"
+                    style={{
+                        padding: "16px 20px",
+                        marginBottom: 20,
+                        borderRadius: "var(--radius-md)",
+                        border: "1px solid var(--color-border)",
+                        background: "var(--color-bg-subtle)",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        gap: 14,
+                    }}
+                >
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div
+                            style={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: "var(--radius-sm)",
+                                background: myProfile?.lineUserId ? "rgba(16, 185, 129, 0.12)" : "rgba(245, 158, 11, 0.12)",
+                                color: myProfile?.lineUserId ? "var(--color-success)" : "#d97706",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            <Icon name={myProfile?.lineUserId ? "check-circle" : "shield"} size={22} />
+                        </div>
+                        <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <strong style={{ fontSize: 14, color: "var(--color-text)" }}>
+                                    สถานะ LINE ของคุณ ({user?.email})
+                                </strong>
+                                <span
+                                    style={{
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        padding: "1px 6px",
+                                        borderRadius: 4,
+                                        background: myProfile?.lineUserId ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
+                                        color: myProfile?.lineUserId ? "var(--color-success)" : "#d97706",
+                                    }}
+                                >
+                                    {myProfile?.lineUserId ? "ผูก LINE แล้ว" : "ยังไม่ผูก LINE"}
+                                </span>
+                            </div>
+                            <p style={{ margin: "3px 0 0 0", fontSize: 12, color: "var(--color-text-muted)" }}>
+                                {myProfile?.lineUserId
+                                    ? `หากต้องการยกเลิกการเชื่อมต่อ ให้พิมพ์คำว่า "unlink" ในแชท LINE OA หรือกดปุ่มด้านขวา`
+                                    : `พิมพ์รหัส ${myProfile?.lineLinkCode || "ADMIN-xxxxxx"} ส่งในแชท LINE เพื่อเชื่อมต่อ (พิมพ์คำว่า "unlink" เพื่อยกเลิก)`}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {myProfile?.lineUserId ? (
+                            <button
+                                type="button"
+                                onClick={handleUnlinkMyLine}
+                                disabled={saving}
+                                style={{
+                                    padding: "6px 12px",
+                                    borderRadius: "var(--radius-sm)",
+                                    border: "1px solid var(--color-border)",
+                                    background: "var(--color-bg-surface)",
+                                    color: "var(--color-danger, #ef4444)",
+                                    fontSize: 12,
+                                    cursor: "pointer",
+                                    fontWeight: 500,
+                                }}
+                            >
+                                ยกเลิกผูก LINE
+                            </button>
+                        ) : myProfile?.lineLinkCode ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 14, color: "var(--color-primary)" }}>
+                                    {myProfile.lineLinkCode}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => handleCopyCode(myProfile.lineLinkCode)}
+                                    style={{
+                                        padding: "5px 10px",
+                                        borderRadius: "var(--radius-sm)",
+                                        border: "1px solid var(--color-border)",
+                                        background: "var(--color-bg-surface)",
+                                        fontSize: 12,
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    {copied ? "คัดลอกแล้ว" : "คัดลอก"}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleResetMyLine}
+                                    disabled={saving}
+                                    style={{
+                                        padding: "5px 10px",
+                                        borderRadius: "var(--radius-sm)",
+                                        border: "1px solid var(--color-border)",
+                                        background: "var(--color-bg-surface)",
+                                        fontSize: 12,
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    ขอรหัสใหม่
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={handleResetMyLine}
+                                disabled={saving}
+                                style={{
+                                    padding: "6px 14px",
+                                    borderRadius: "var(--radius-sm)",
+                                    background: "var(--color-primary)",
+                                    color: "#fff",
+                                    border: "none",
+                                    fontSize: 12,
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                }}
+                            >
+                                ขอรหัสเชื่อมต่อ LINE
+                            </button>
+                        )}
                     </div>
                 </div>
 

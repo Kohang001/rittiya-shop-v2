@@ -45,6 +45,14 @@ function createShopQuickReply(isOpen) {
                     uri: "https://rittiya-shop-v2.vercel.app/seller/dashboard",
                 },
             },
+            {
+                type: "action",
+                action: {
+                    type: "message",
+                    label: "🔌 ยกเลิกผูก LINE",
+                    text: "unlink",
+                },
+            },
         ],
     };
 }
@@ -84,12 +92,153 @@ export default async function handler(req, res) {
 
         try {
             // =========================================================================
-            // 1. ตรวจสอบรหัสผูกบัญชี Admin เฉพาะบุคคล (ADMIN-xxxxxx)
+            // 0. คำสั่ง: ยกเลิกการเชื่อมต่อ LINE (Unlink Command — ใช้คำเดียว 'unlink')
             // =========================================================================
-            if (incomingText.startsWith("ADMIN-") || incomingText.startsWith("admin-")) {
+            const isUnlinkCommand = lowerText === "unlink" || postbackData === "action=unlink";
+
+            if (isUnlinkCommand) {
+                // 0.1 ตรวจสอบว่าผูกกับร้านค้าหรือไม่
+                const shopSnap = await adminDb
+                    .collection("shops")
+                    .where("lineUserId", "==", userId)
+                    .limit(1)
+                    .get();
+
+                if (!shopSnap.empty) {
+                    const shopDoc = shopSnap.docs[0];
+                    const shop = shopDoc.data();
+                    const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+                    await shopDoc.ref.update({
+                        lineUserId: null,
+                        lineLinkCode: newCode,
+                        updatedAt: new Date(),
+                    });
+
+                    await adminDb.collection("adminLogs").add({
+                        action: "line_shop_unlinked",
+                        targetType: "shop",
+                        targetId: shopDoc.id,
+                        targetName: shop.name,
+                        detail: `ร้านค้า "${shop.name}" ยกเลิกการเชื่อมต่อ LINE ผ่านคำสั่ง unlink (ออกรหัสใหม่เรียบร้อยแล้ว)`,
+                        status: "warning",
+                        actorEmail: `ร้าน: ${shop.name}`,
+                        actorUid: userId,
+                        createdAt: new Date(),
+                    }).catch(() => {});
+
+                    await replyMessage(replyToken, [
+                        {
+                            type: "text",
+                            text:
+                                `🔌 ยกเลิกการเชื่อมต่อ LINE กับร้าน "${shop.name}" สำเร็จแล้ว!\n` +
+                                `━━━━━━━━━━━━━━━\n` +
+                                `ระบบจะไม่ส่งการแจ้งเตือนออเดอร์มายังแชทนี้อีกต่อไป\n\n` +
+                                `🔑 รหัสเชื่อมต่อชุดใหม่ของคุณคือ: ${newCode}\n` +
+                                `(รหัสใหม่นี้จะแสดงในหน้าแดชบอร์ดร้านค้าบนเว็บด้วย คุณสามารถนำไปเชื่อมต่อใหม่ได้ตลอดเวลาครับ)`,
+                        },
+                    ]);
+                    continue;
+                }
+
+                // 0.2 ตรวจสอบว่าผูกกับบัญชีแอดมินหรือไม่
                 const adminSnap = await adminDb
                     .collection("admins")
-                    .where("lineLinkCode", "==", incomingText.toUpperCase())
+                    .where("lineUserId", "==", userId)
+                    .limit(1)
+                    .get();
+
+                if (!adminSnap.empty) {
+                    const adminDoc = adminSnap.docs[0];
+                    const adminData = adminDoc.data();
+                    const roleLabel = adminData.role === "super" ? "Super Admin" : "Normal Admin";
+                    const newCode = "ADMIN-" + Math.floor(100000 + Math.random() * 900000);
+
+                    await adminDoc.ref.update({
+                        lineUserId: null,
+                        lineLinkCode: newCode,
+                        updatedAt: new Date(),
+                    });
+
+                    // หากเป็น Super Admin ให้เคลียร์ใน config/admin ด้วยถ้า lineUserId ตรงกัน
+                    const configSnap = await adminDb.collection("config").doc("admin").get();
+                    if (configSnap.exists && configSnap.data()?.lineUserId === userId) {
+                        await adminDb.collection("config").doc("admin").set({ lineUserId: null }, { merge: true });
+                    }
+
+                    await adminDb.collection("adminLogs").add({
+                        action: "line_admin_unlinked",
+                        targetType: "admin",
+                        targetId: adminDoc.id,
+                        targetName: adminData.email || "Admin",
+                        detail: `ผู้ดูแลระบบ (${roleLabel}) "${adminData.email}" ยกเลิกการเชื่อมต่อ LINE ผ่านคำสั่ง unlink`,
+                        status: "warning",
+                        actorEmail: adminData.email || "Admin",
+                        actorUid: adminDoc.id,
+                        createdAt: new Date(),
+                    }).catch(() => {});
+
+                    await replyMessage(replyToken, [
+                        {
+                            type: "text",
+                            text:
+                                `🔌 ยกเลิกการเชื่อมต่อ LINE กับบัญชีผู้ดูแลระบบ (${adminData.email}) เรียบร้อยแล้ว!\n` +
+                                `━━━━━━━━━━━━━━━\n` +
+                                `ระบบจะไม่ส่งการแจ้งเตือนแอดมินมายังแชทนี้อีกต่อไป\n\n` +
+                                `🔑 รหัสเชื่อมต่อชุดใหม่ของคุณคือ: ${newCode}\n` +
+                                `(รหัสใหม่นี้จะแสดงในหน้าผู้ดูแลระบบบนเว็บด้วยครับ)`,
+                        },
+                    ]);
+                    continue;
+                }
+
+                // 0.3 ตรวจสอบว่าผูกกับบัญชีผู้ใช้ทั่วไปหรือไม่
+                const userSnap = await adminDb
+                    .collection("users")
+                    .where("lineUserId", "==", userId)
+                    .limit(1)
+                    .get();
+
+                if (!userSnap.empty) {
+                    const userDoc = userSnap.docs[0];
+                    const userData = userDoc.data();
+                    const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+                    await userDoc.ref.update({
+                        lineUserId: null,
+                        lineLinkCode: newCode,
+                        updatedAt: new Date(),
+                    });
+
+                    await replyMessage(replyToken, [
+                        {
+                            type: "text",
+                            text:
+                                `🔌 ยกเลิกการเชื่อมต่อ LINE กับบัญชีผู้ใช้ "${userData.displayName || userData.email}" สำเร็จแล้ว!\n` +
+                                `ระบบจะไม่ส่งการแจ้งเตือนสถานะออเดอร์มายังแชทนี้อีกต่อไป`,
+                        },
+                    ]);
+                    continue;
+                }
+
+                // หากยังไม่ได้ผูกกับบัญชีใดๆ
+                await replyMessage(replyToken, [
+                    {
+                        type: "text",
+                        text: `⚠️ บัญชี LINE นี้ยังไม่ได้เชื่อมต่อกับร้านค้าหรือบัญชีผู้ดูแลระบบใดๆ ในระบบ Rittiya Shop ครับ`,
+                    },
+                ]);
+                continue;
+            }
+
+            // =========================================================================
+            // 1. ตรวจสอบรหัสผูกบัญชี Admin เฉพาะบุคคล (รูปแบบเดียวตายตัว: ADMIN-xxxxxx)
+            // =========================================================================
+            const cleanAdminCode = incomingText.toUpperCase();
+            if (/^ADMIN-\d{6}$/.test(cleanAdminCode)) {
+                const adminSnap = await adminDb
+                    .collection("admins")
+                    .where("lineLinkCode", "==", cleanAdminCode)
                     .limit(1)
                     .get();
 
@@ -125,16 +274,24 @@ export default async function handler(req, res) {
                     await replyMessage(replyToken, [
                         {
                             type: "text",
-                            text: `✅ เชื่อมต่อบัญชีผู้ดูแลระบบ (${roleLabel}) สำเร็จแล้ว!\nคุณจะได้รับการแจ้งเตือนร้านใหม่ สินค้าใหม่ และรายงานข้อผิดพลาดของระบบที่นี่`,
+                            text:
+                                `✅ เชื่อมต่อบัญชีผู้ดูแลระบบ (${roleLabel}) สำเร็จแล้ว!\n` +
+                                `━━━━━━━━━━━━━━━\n` +
+                                `คุณจะได้รับการแจ้งเตือนร้านใหม่ สินค้าใหม่ และรายงานข้อผิดพลาดของระบบที่นี่\n\n` +
+                                `💡 หากต้องการยกเลิกการเชื่อมต่อในอนาคต ให้พิมพ์คำว่า "unlink" ในแชทนี้ครับ`,
                         },
                     ]);
                     continue;
                 } else {
-                    // ส่งรหัส ADMIN แต่ไม่ถูกต้องหรือถูกใช้งานไปแล้ว
+                    // ส่งรหัส ADMIN-xxxxxx แต่ไม่ถูกต้องหรือถูกใช้งานไปแล้ว
                     await replyMessage(replyToken, [
                         {
                             type: "text",
-                            text: `⚠️ ไม่พบรหัส Admin นี้ในระบบ หรือรหัสนี้ถูกใช้งานไปแล้ว\n(รหัสเชื่อมต่อเป็นแบบใช้ครั้งเดียวเพื่อความปลอดภัยสูงสุด)`,
+                            text:
+                                `⚠️ ไม่พบรหัส Admin "${cleanAdminCode}" ในระบบ หรือรหัสนี้ถูกใช้งานไปแล้ว\n` +
+                                `━━━━━━━━━━━━━━━\n` +
+                                `เพื่อความปลอดภัย รหัสเชื่อมต่อเป็นแบบใช้ครั้งเดียวแล้วทิ้ง (One-Time Code)\n` +
+                                `กรุณากดขอรหัสชุดใหม่จากหน้าจัดการแอดมินบนเว็บไซต์ครับ`,
                         },
                     ]);
                     continue;
@@ -362,7 +519,8 @@ export default async function handler(req, res) {
                             text:
                                 `🎉 เชื่อมต่อร้าน "${shop.name}" สำเร็จแล้ว!\n` +
                                 `━━━━━━━━━━━━━━━\n` +
-                                `คุณจะได้รับแจ้งเตือนออเดอร์ใหม่พร้อมรูปสลิปที่นี่ และสามารถแตะปุ่มด้านล่างเพื่อ "เปิด" หรือ "ปิด" รับออเดอร์ได้ตลอดเวลาครับ`,
+                                `คุณจะได้รับแจ้งเตือนออเดอร์ใหม่พร้อมรูปสลิปที่นี่ และสามารถแตะปุ่มด้านล่างเพื่อ "เปิด" หรือ "ปิด" รับออเดอร์ได้ตลอดเวลาครับ\n\n` +
+                                `💡 หากต้องการยกเลิกการเชื่อมต่อในอนาคต ให้พิมพ์คำว่า "unlink" ในแชทนี้ครับ`,
                             quickReply: createShopQuickReply(isOpen),
                         },
                     ]);

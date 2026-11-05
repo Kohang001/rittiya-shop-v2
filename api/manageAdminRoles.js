@@ -1,16 +1,39 @@
 // api/manageAdminRoles.js — ดึงรายชื่อผู้ใช้ และจัดการระดับสิทธิ์ Admin (Super vs Normal)
-import { adminDb, adminAuth, verifySuperAdminRequest } from "./_firebaseAdmin.js";
+import { adminDb, adminAuth, verifyAdminRequest } from "./_firebaseAdmin.js";
 
 const MASTER_ADMIN_EMAIL = "nathwrrthsumphlxy@gmail.com";
 
 export default async function handler(req, res) {
-    const superAdmin = await verifySuperAdminRequest(req);
-    if (!superAdmin) {
-        return res.status(403).json({ error: "สงวนสิทธิ์เฉพาะ Super Admin เท่านั้น" });
+    const callerAdmin = await verifyAdminRequest(req);
+    if (!callerAdmin) {
+        return res.status(403).json({ error: "สงวนสิทธิ์เฉพาะผู้ดูแลระบบเท่านั้น" });
     }
+    const isSuperAdmin = callerAdmin.role === "super";
 
     if (req.method === "GET") {
         try {
+            // ดึงข้อมูลโปรไฟล์แอดมินของผู้เรียกเสมอ
+            const myAdminSnap = await adminDb.collection("admins").doc(callerAdmin.uid).get();
+            const myAdminData = myAdminSnap.exists ? myAdminSnap.data() : null;
+
+            const myProfile = {
+                uid: callerAdmin.uid,
+                email: callerAdmin.email,
+                role: callerAdmin.role,
+                lineUserId: myAdminData?.lineUserId || null,
+                lineLinkCode: myAdminData?.lineLinkCode || null,
+            };
+
+            // หากเป็น Normal Admin -> ส่งคืนเฉพาะข้อมูลตนเอง ห้ามส่งรายชื่อผู้อื่นเด็ดขาด
+            if (!isSuperAdmin) {
+                return res.status(200).json({
+                    isSuperAdmin: false,
+                    myProfile,
+                    users: [],
+                });
+            }
+
+            // หากเป็น Super Admin -> ดึงรายชื่อผู้ใช้ทั้งหมด
             // 1. ดึงรายชื่อผู้ใช้ทั้งหมดจาก Firebase Auth (100 ผู้ใช้ล่าสุด)
             const listUsersResult = await adminAuth.listUsers(100);
 
@@ -56,7 +79,11 @@ export default async function handler(req, res) {
                 };
             });
 
-            return res.status(200).json({ users });
+            return res.status(200).json({
+                isSuperAdmin: true,
+                myProfile,
+                users,
+            });
         } catch (err) {
             console.error("listUsers error:", err);
             return res.status(500).json({ error: "ดึงรายชื่อผู้ใช้ไม่สำเร็จ" });
@@ -65,6 +92,56 @@ export default async function handler(req, res) {
 
     if (req.method === "POST") {
         const { targetUid, newRole, action } = req.body || {};
+
+        // ---------- กรณีจัดการ LINE ของตนเอง (อนุญาตทั้ง Normal Admin และ Super Admin) ----------
+        if (action === "reset_my_line" || action === "unlink_my_line") {
+            try {
+                const uid = callerAdmin.uid;
+                const freshLineCode = "ADMIN-" + Math.floor(100000 + Math.random() * 900000);
+
+                await adminDb.collection("admins").doc(uid).set(
+                    {
+                        uid,
+                        email: callerAdmin.email,
+                        lineUserId: null, // ปลดการผูก LINE
+                        lineLinkCode: freshLineCode,
+                        updatedAt: new Date(),
+                    },
+                    { merge: true }
+                );
+
+                // หากเป็น Super Admin ให้เคลียร์ใน config/admin ด้วย
+                if (isSuperAdmin) {
+                    await adminDb.collection("config").doc("admin").set({ lineUserId: null }, { merge: true });
+                }
+
+                await adminDb.collection("adminLogs").add({
+                    action: action === "reset_my_line" ? "reset_admin_line" : "line_admin_unlinked",
+                    targetType: "admin",
+                    targetId: uid,
+                    targetName: callerAdmin.email,
+                    detail: `ผู้ดูแลระบบ (${callerAdmin.role}) "${callerAdmin.email}" ทำการ${action === "reset_my_line" ? "ขอรหัสผูก LINE ใหม่" : "ยกเลิกการผูก LINE"} ด้วยตนเอง`,
+                    status: "info",
+                    actorEmail: callerAdmin.email,
+                    actorUid: uid,
+                    createdAt: new Date(),
+                }).catch(() => {});
+
+                return res.status(200).json({
+                    success: true,
+                    lineLinkCode: freshLineCode,
+                    message: action === "reset_my_line" ? "สร้างรหัสเชื่อมต่อชุดใหม่สำเร็จ" : "ยกเลิกการเชื่อมต่อ LINE สำเร็จ",
+                });
+            } catch (err) {
+                console.error("manage_my_line error:", err);
+                return res.status(500).json({ error: "ดำเนินการไม่สำเร็จ" });
+            }
+        }
+
+        // ---------- การกระทำระดับผู้ดูแลระบบส่วนกลาง (สงวนสิทธิ์เฉพาะ Super Admin เท่านั้น) ----------
+        if (!isSuperAdmin) {
+            return res.status(403).json({ error: "สงวนสิทธิ์เฉพาะ Super Admin เท่านั้น" });
+        }
 
         // ---------- กรณี 1: รีเซ็ตการผูก LINE ของแอดมินรายบุคคล ----------
         if (action === "reset_admin_line") {

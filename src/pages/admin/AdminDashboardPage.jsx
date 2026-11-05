@@ -126,6 +126,18 @@ export default function AdminDashboardPage() {
                 badge = "LINE ร้านค้า";
                 badgeColor = "#8b5cf6";
                 category = "shops";
+            } else if (l.action === "line_shop_unlinked") {
+                badge = "LINE ปลดร้าน";
+                badgeColor = "#f59e0b";
+                category = "shops";
+            } else if (l.action === "line_user_unlinked") {
+                badge = "LINE ปลดลูกค้า";
+                badgeColor = "#f59e0b";
+                category = "users";
+            } else if (l.action === "line_admin_unlinked") {
+                badge = "LINE ปลด Admin";
+                badgeColor = "#f59e0b";
+                category = "admin";
             } else if (l.action === "order_created") {
                 badge = "ออเดอร์";
                 badgeColor = "var(--color-info, #2563eb)";

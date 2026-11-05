@@ -17,9 +17,11 @@ export default function AdminNav() {
 
     const links = [
         ...BASE_LINKS,
-        ...(isSuperAdmin
-            ? [{ to: "/admin/roles", label: "จัดการสิทธิ์", icon: "shield" }]
-            : []),
+        {
+            to: "/admin/roles",
+            label: isSuperAdmin ? "จัดการสิทธิ์ & LINE" : "LINE แอดมิน",
+            icon: "shield",
+        },
     ];
 
     return (

@@ -16,7 +16,7 @@ export function verifyLineSignature(rawBody, signature) {
 
 /** ตอบกลับข้อความในแชทเดิม (ใช้ตอบตอนผูกบัญชีสำเร็จ/ไม่สำเร็จ) */
 export async function replyMessage(replyToken, messages) {
-    await fetch(`${LINE_API_BASE}/message/reply`, {
+    const res = await fetch(`${LINE_API_BASE}/message/reply`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -24,6 +24,9 @@ export async function replyMessage(replyToken, messages) {
         },
         body: JSON.stringify({ replyToken, messages }),
     });
+    if (!res.ok) {
+        console.error("LINE replyMessage failed:", res.status, await res.text());
+    }
 }
 
 /** ส่งข้อความแจ้งเตือนไปหา user โดยตรง (ใช้ตอนมีออเดอร์ใหม่/ร้านใหม่) */
