@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
-import { saveUserProfile } from "../../firebase/firestore";
+import { saveUserProfile, generateNewUserLineCode, unlinkUserLine } from "../../firebase/firestore";
 import { validatePhone } from "../../utils/validators";
 import Breadcrumb from "../../components/ui/Breadcrumb";
 import PageSkeleton from "../../components/ui/PageSkeleton";
@@ -18,6 +18,8 @@ export default function ProfilePage() {
     const [phone, setPhone] = useState("");
     const [defaultPickupLocation, setDefaultPickupLocation] = useState("");
     const [saving, setSaving] = useState(false);
+    const [generatingLineCode, setGeneratingLineCode] = useState(false);
+    const [copiedLineCode, setCopiedLineCode] = useState(false);
 
     useEffect(() => {
         if (userProfile) {
@@ -26,6 +28,44 @@ export default function ProfilePage() {
             setDefaultPickupLocation(userProfile.defaultPickupLocation || "");
         }
     }, [userProfile]);
+
+    async function handleGenerateLineCode() {
+        if (!user?.uid) return;
+        setGeneratingLineCode(true);
+        try {
+            await generateNewUserLineCode(user.uid);
+            await refreshUserProfile(user.uid);
+            showToast("สร้างรหัสเชื่อมต่อ LINE ใหม่เรียบร้อยแล้ว", "success");
+        } catch (err) {
+            console.error("Generate user line code error:", err);
+            showToast("สร้างรหัสไม่สำเร็จ กรุณาลองอีกครั้ง", "error");
+        } finally {
+            setGeneratingLineCode(false);
+        }
+    }
+
+    async function handleUnlinkLine() {
+        if (!window.confirm("คุณต้องการยกเลิกการผูกบัญชี LINE ใช่หรือไม่?")) return;
+        setGeneratingLineCode(true);
+        try {
+            await unlinkUserLine(user.uid);
+            await refreshUserProfile(user.uid);
+            showToast("ยกเลิกการผูก LINE สำเร็จ", "info");
+        } catch (err) {
+            console.error("Unlink line error:", err);
+            showToast("ยกเลิกการผูก LINE ไม่สำเร็จ", "error");
+        } finally {
+            setGeneratingLineCode(false);
+        }
+    }
+
+    function handleCopyLineCode(code) {
+        if (!code) return;
+        navigator.clipboard.writeText(code);
+        setCopiedLineCode(true);
+        showToast("คัดลอกรหัสเชื่อมต่อแล้ว", "success");
+        setTimeout(() => setCopiedLineCode(false), 2500);
+    }
 
     async function handleSave(e) {
         e.preventDefault();
@@ -224,6 +264,173 @@ export default function ProfilePage() {
                         {saving ? "กำลังบันทึก..." : "บันทึกการเปลี่ยนแปลง"}
                     </button>
                 </form>
+            </div>
+
+            {/* LINE Connection Card for Buyer Notifications */}
+            <div
+                className="card"
+                style={{
+                    padding: 24,
+                    marginBottom: 24,
+                }}
+            >
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                    <div
+                        style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: "var(--radius-sm)",
+                            background: "rgba(6, 199, 85, 0.12)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                        }}
+                    >
+                        <Icon name="message" size={20} color="#06c755" />
+                    </div>
+                    <div>
+                        <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--color-text)" }}>
+                            เชื่อมต่อ LINE เพื่อรับแจ้งเตือนออเดอร์
+                        </h2>
+                        <p style={{ margin: "2px 0 0 0", fontSize: 12, color: "var(--color-text-muted)" }}>
+                            รับข้อความแจ้งสถานะเมื่อแม่ค้ารับคำสั่งซื้อและพร้อมส่งอาหารผ่าน LINE Official Account
+                        </p>
+                    </div>
+                </div>
+
+                {userProfile?.lineUserId ? (
+                    <div
+                        style={{
+                            padding: "14px 18px",
+                            borderRadius: "var(--radius-sm)",
+                            background: "rgba(16, 185, 129, 0.08)",
+                            border: "1px solid rgba(16, 185, 129, 0.25)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            flexWrap: "wrap",
+                            gap: 12,
+                        }}
+                    >
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <Icon name="check-circle" size={20} color="var(--color-success)" />
+                            <div>
+                                <strong style={{ display: "block", fontSize: 14, color: "var(--color-text)" }}>
+                                    เชื่อมต่อ LINE เรียบร้อยแล้ว
+                                </strong>
+                                <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                                    รหัสเชื่อมต่อเดิมถูกล้างทิ้งอัตโนมัติแล้ว (One-Time Pairing)
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleUnlinkLine}
+                            disabled={generatingLineCode}
+                            style={{
+                                padding: "6px 12px",
+                                borderRadius: "var(--radius-sm)",
+                                border: "1px solid var(--color-border)",
+                                background: "var(--color-bg-surface)",
+                                color: "var(--color-danger, #ef4444)",
+                                fontSize: 12,
+                                fontWeight: 500,
+                                cursor: "pointer",
+                            }}
+                        >
+                            ยกเลิกการผูก LINE
+                        </button>
+                    </div>
+                ) : (
+                    <div
+                        style={{
+                            padding: "16px",
+                            borderRadius: "var(--radius-sm)",
+                            background: "var(--color-bg-subtle)",
+                            border: "1px solid var(--color-border)",
+                        }}
+                    >
+                        <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "0 0 12px 0" }}>
+                            เพิ่มเพื่อน LINE Official Account แล้วส่งรหัสเชื่อมต่อ 6 หลักเพื่อผูกบัญชี (รหัสใช้ได้ครั้งเดียวเพื่อความปลอดภัย):
+                        </p>
+
+                        {userProfile?.lineLinkCode ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                                <div
+                                    style={{
+                                        background: "var(--color-bg-surface)",
+                                        border: "2px dashed var(--color-primary)",
+                                        borderRadius: "var(--radius-sm)",
+                                        padding: "8px 20px",
+                                        fontFamily: "monospace",
+                                        fontSize: 22,
+                                        fontWeight: 700,
+                                        letterSpacing: 4,
+                                        color: "var(--color-primary)",
+                                    }}
+                                >
+                                    {userProfile.lineLinkCode}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleCopyLineCode(userProfile.lineLinkCode)}
+                                    style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        padding: "8px 14px",
+                                        borderRadius: "var(--radius-sm)",
+                                        border: "1px solid var(--color-border)",
+                                        background: "var(--color-bg-surface)",
+                                        fontSize: 13,
+                                        cursor: "pointer",
+                                        color: copiedLineCode ? "var(--color-success)" : "var(--color-text)",
+                                    }}
+                                >
+                                    <Icon name={copiedLineCode ? "check" : "copy"} size={14} />
+                                    {copiedLineCode ? "คัดลอกแล้ว" : "คัดลอกรหัส"}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleGenerateLineCode}
+                                    disabled={generatingLineCode}
+                                    style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "var(--color-text-muted)",
+                                        fontSize: 12,
+                                        cursor: "pointer",
+                                        textDecoration: "underline",
+                                    }}
+                                >
+                                    {generatingLineCode ? "กำลังสร้าง..." : "ขอรหัสใหม่"}
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={handleGenerateLineCode}
+                                disabled={generatingLineCode}
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    padding: "8px 16px",
+                                    borderRadius: "var(--radius-sm)",
+                                    background: "var(--color-primary)",
+                                    color: "#fff",
+                                    border: "none",
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                }}
+                            >
+                                <Icon name="refresh" size={14} />
+                                {generatingLineCode ? "กำลังสร้างรหัส..." : "ขอรหัสเชื่อมต่อ LINE (รหัสใช้ครั้งเดียว)"}
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Quick Links Card */}

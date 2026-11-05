@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
-import { getShopsByOwner, updateShopInfo } from "../../firebase/firestore";
+import { getShopsByOwner, updateShopInfo, logAdminAction } from "../../firebase/firestore";
 import ImageUploadField from "../../components/form/ImageUploadField";
 import Icon from "../../components/ui/Icon";
 import { THAI_BANKS } from "../../utils/banks";
@@ -129,6 +129,19 @@ export default function SellerShopEditPage() {
                 ig: ig.trim(),
                 category: trimmedCategory,
             });
+
+            // บันทึก Activity Log สำหรับการแก้ไขข้อมูลร้านค้า
+            logAdminAction({
+                action: "shop_updated",
+                targetType: "shop",
+                targetId: shop.id,
+                targetName: name.trim(),
+                detail: `ร้านค้าอัปเดตข้อมูลร้าน: ${name.trim()} (หมวดหมู่: ${trimmedCategory})`,
+                status: "info",
+                actorEmail: user?.email || "Seller",
+                actorUid: user?.uid || shop.ownerUid,
+            }).catch(() => {});
+
             showToast("บันทึกข้อมูลร้านสำเร็จ", "success");
             navigate("/seller/dashboard");
         } catch (err) {

@@ -85,8 +85,10 @@ service cloud.firestore {
                     || (isOwner(resource.data.ownerUid)
                         && request.resource.data.ownerUid == resource.data.ownerUid
                         && (
-                            // อนุญาตให้เจ้าของร้านเปลี่ยนสถานะเปิด/ปิดร้านได้ทันที
+                            // อนุญาตให้เจ้าของร้านเปลี่ยนสถานะเปิด/ปิดร้าน หรือจัดการรหัสเชื่อมต่อ LINE ได้ทันที
                             request.resource.data.diff(resource.data).affectedKeys().hasOnly(["isOpen", "updatedAt"])
+                            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(["lineLinkCode", "updatedAt"])
+                            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(["lineUserId", "lineLinkCode", "updatedAt"])
                             || isValidShopData(request.resource.data)
                         ));
 

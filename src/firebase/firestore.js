@@ -113,6 +113,52 @@ export async function setShopOpenStatus(shopId, isOpen) {
     });
 }
 
+/** ออกรหัสผูก LINE ใหม่สำหรับร้านค้า (รหัสแบบใช้ครั้งเดียว One-Time Code) */
+export async function generateNewShopLineCode(shopId) {
+    const newCode = generateLineLinkCode();
+    await updateDoc(doc(db, "shops", shopId), {
+        lineLinkCode: newCode,
+        updatedAt: serverTimestamp(),
+    });
+    return newCode;
+}
+
+/** ยกเลิกการผูก LINE ร้านค้า เพื่อผูกใหม่หรือสลับบัญชี */
+export async function unlinkShopLine(shopId) {
+    await updateDoc(doc(db, "shops", shopId), {
+        lineUserId: null,
+        lineLinkCode: null,
+        updatedAt: serverTimestamp(),
+    });
+}
+
+/** ออกรหัสผูก LINE ใหม่สำหรับผู้ใช้ทั่วไป (Buyer One-Time Code) */
+export async function generateNewUserLineCode(uid) {
+    const newCode = generateLineLinkCode();
+    await setDoc(
+        doc(db, "users", uid),
+        {
+            lineLinkCode: newCode,
+            updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+    );
+    return newCode;
+}
+
+/** ยกเลิกการผูก LINE ของผู้ใช้ทั่วไป */
+export async function unlinkUserLine(uid) {
+    await setDoc(
+        doc(db, "users", uid),
+        {
+            lineUserId: null,
+            lineLinkCode: null,
+            updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+    );
+}
+
 function generateLineLinkCode() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -547,6 +593,19 @@ export async function createFeedPost(postData) {
     if (postData.authorEmail) cleanData.authorEmail = postData.authorEmail;
 
     const docRef = await addDoc(collection(db, "feedPosts"), cleanData);
+
+    // บันทึก Activity Log สำหรับประกาศข่าวสารใหม่
+    logAdminAction({
+        action: "feed_post_created",
+        targetType: "feedPost",
+        targetId: docRef.id,
+        targetName: cleanData.title,
+        detail: `สร้างประกาศใหม่: "${cleanData.title}" (${cleanData.shopName || "ประกาศจากระบบ"})`,
+        status: "success",
+        actorEmail: cleanData.authorEmail || "Author",
+        actorUid: cleanData.authorRole || "system",
+    }).catch(() => {});
+
     return docRef.id;
 }
 

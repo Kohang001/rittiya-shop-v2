@@ -9,6 +9,7 @@ import {
     getAllOrdersForAdmin,
     getAdminLogs,
     getAllUsersForAdmin,
+    getAllFeedPostsForAdmin,
 } from "../../firebase/firestore";
 import AdminNav from "../../components/layout/AdminNav";
 import PageSkeleton from "../../components/ui/PageSkeleton";
@@ -33,6 +34,7 @@ export default function AdminDashboardPage() {
     const [orders, setOrders] = useState([]);
     const [adminLogs, setAdminLogs] = useState([]);
     const [users, setUsers] = useState([]);
+    const [feedPosts, setFeedPosts] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Filters & Search
@@ -46,18 +48,20 @@ export default function AdminDashboardPage() {
         async function load() {
             setLoading(true);
             try {
-                const [shopsData, productsData, ordersData, adminLogsData, usersData] = await Promise.all([
+                const [shopsData, productsData, ordersData, adminLogsData, usersData, feedPostsData] = await Promise.all([
                     getAllShopsForAdmin().catch(() => []),
                     getAllProductsForAdmin().catch(() => []),
                     getAllOrdersForAdmin().catch(() => []),
                     getAdminLogs(100).catch(() => []),
                     getAllUsersForAdmin(100).catch(() => []),
+                    getAllFeedPostsForAdmin().catch(() => []),
                 ]);
                 setShops(shopsData);
                 setProducts(productsData);
                 setOrders(ordersData);
                 setAdminLogs(adminLogsData);
                 setUsers(usersData);
+                setFeedPosts(feedPostsData);
             } catch (err) {
                 console.error("Failed to load admin dashboard data:", err);
             } finally {
@@ -90,14 +94,62 @@ export default function AdminDashboardPage() {
                 badge = "สมาชิกใหม่";
                 badgeColor = "#8b5cf6";
                 category = "users";
+            } else if (l.action === "line_user_linked") {
+                badge = "LINE ลูกค้า";
+                badgeColor = "#8b5cf6";
+                category = "users";
             } else if (l.action === "shop_registered") {
                 badge = "ร้านใหม่";
                 badgeColor = "var(--color-primary)";
+                category = "shops";
+            } else if (l.action === "shop_updated") {
+                badge = "แก้ไขร้าน";
+                badgeColor = "#0ea5e9";
+                category = "shops";
+            } else if (l.action === "shop_opened") {
+                badge = "เปิดร้าน";
+                badgeColor = "var(--color-success, #22c55e)";
+                category = "shops";
+            } else if (l.action === "shop_closed") {
+                badge = "ปิดร้าน";
+                badgeColor = "#f59e0b";
+                category = "shops";
+            } else if (l.action === "line_shop_opened") {
+                badge = "LINE เปิดร้าน";
+                badgeColor = "var(--color-success, #22c55e)";
+                category = "shops";
+            } else if (l.action === "line_shop_closed") {
+                badge = "LINE ปิดร้าน";
+                badgeColor = "#f59e0b";
+                category = "shops";
+            } else if (l.action === "line_shop_linked") {
+                badge = "LINE ร้านค้า";
+                badgeColor = "#8b5cf6";
                 category = "shops";
             } else if (l.action === "order_created") {
                 badge = "ออเดอร์";
                 badgeColor = "var(--color-info, #2563eb)";
                 category = "orders";
+            } else if (l.action === "feed_post_created") {
+                badge = "ประกาศใหม่";
+                badgeColor = "#06b6d4";
+                category = "feed";
+            } else if (l.action === "hide_feed_post") {
+                badge = "ซ่อนประกาศ";
+                badgeColor = "#f59e0b";
+                category = "feed";
+            } else if (l.action === "unhide_feed_post") {
+                badge = "เลิกซ่อน";
+                badgeColor = "var(--color-success, #22c55e)";
+                category = "feed";
+            } else if (l.action === "delete_feed_post") {
+                badge = "ลบประกาศ";
+                badgeColor = "#ef4444";
+                category = "feed";
+            } else if (l.action === "line_admin_linked") {
+                badge = "LINE Admin";
+                badgeColor = "#ec4899";
+                category = "admin";
             } else if (l.action === "grant_admin_role" || l.action === "revoke_admin_role") {
                 badge = "สิทธิ์ Admin";
                 badgeColor = "#ec4899";
@@ -264,10 +316,38 @@ export default function AdminDashboardPage() {
             }
         });
 
+        // 6. ข้อมูลประกาศข่าวสาร (feedPosts collection)
+        feedPosts.forEach((fp) => {
+            const hasLog = logs.some(
+                (l) => l.action === "feed_post_created" && (l.title.includes(fp.title || "") || l.id === `admin-log-${fp.id}`)
+            );
+            if (!hasLog) {
+                const date = fp.createdAt?.toDate
+                    ? fp.createdAt.toDate()
+                    : fp.createdAt
+                    ? new Date(fp.createdAt)
+                    : new Date();
+                logs.push({
+                    id: `feed-${fp.id}`,
+                    type: "feed",
+                    action: "feed_post_created",
+                    isError: false,
+                    title: sanitizeLogText(`ประกาศ: ${fp.title || "ข่าวสารใหม่"}`),
+                    detail: sanitizeLogText(
+                        `โดย: ${fp.authorRole === "super" ? "Super Admin" : fp.shopName || "ระบบ"} · สถานะ: ${fp.status === "rejected" ? "ซ่อนอยู่" : "เผยแพร่แล้ว"}`
+                    ),
+                    date,
+                    badge: "ประกาศ",
+                    badgeColor: "#06b6d4",
+                    link: `/admin/feed`,
+                });
+            }
+        });
+
         // เรียงจากล่าสุดไปเก่าสุด
         logs.sort((a, b) => b.date.getTime() - a.date.getTime());
         return logs;
-    }, [adminLogs, users, shops, products, orders]);
+    }, [adminLogs, users, shops, products, orders, feedPosts]);
 
     // นับจำนวนแยกตามหมวดหมู่
     const counts = useMemo(() => {
@@ -277,6 +357,7 @@ export default function AdminDashboardPage() {
             shops: allActivityLogs.filter((l) => l.type === "shops").length,
             products: allActivityLogs.filter((l) => l.type === "products").length,
             orders: allActivityLogs.filter((l) => l.type === "orders").length,
+            feed: allActivityLogs.filter((l) => l.type === "feed").length,
             admin: allActivityLogs.filter((l) => l.type === "admin").length,
             errors: allActivityLogs.filter((l) => l.isError).length,
         };
@@ -797,6 +878,7 @@ export default function AdminDashboardPage() {
                                 { id: "shops", label: "ร้านค้า", count: counts.shops },
                                 { id: "products", label: "สินค้า", count: counts.products },
                                 { id: "orders", label: "ออเดอร์", count: counts.orders },
+                                { id: "feed", label: "ประกาศ", count: counts.feed },
                                 { id: "admin", label: "กิจกรรม Admin", count: counts.admin },
                                 { id: "errors", label: "ข้อผิดพลาด", count: counts.errors, isAlert: counts.errors > 0 },
                             ].map((tab) => {

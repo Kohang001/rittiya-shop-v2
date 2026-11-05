@@ -109,10 +109,32 @@ export default async function handler(req, res) {
                         await adminDb.collection("config").doc("admin").set({ lineUserId: userId }, { merge: true });
                     }
 
+                    // บันทึก Activity Log สำหรับการเชื่อมต่อ Admin
+                    await adminDb.collection("adminLogs").add({
+                        action: "line_admin_linked",
+                        targetType: "admin",
+                        targetId: adminDoc.id,
+                        targetName: adminData.email || "Admin",
+                        detail: `ผู้ดูแลระบบ (${roleLabel}) "${adminData.email}" ผูกบัญชี LINE OA สำเร็จ (รหัสใช้ครั้งเดียวถูกทำลายแล้ว)`,
+                        status: "success",
+                        actorEmail: adminData.email || "Admin",
+                        actorUid: adminDoc.id,
+                        createdAt: new Date(),
+                    }).catch(() => {});
+
                     await replyMessage(replyToken, [
                         {
                             type: "text",
                             text: `✅ เชื่อมต่อบัญชีผู้ดูแลระบบ (${roleLabel}) สำเร็จแล้ว!\nคุณจะได้รับการแจ้งเตือนร้านใหม่ สินค้าใหม่ และรายงานข้อผิดพลาดของระบบที่นี่`,
+                        },
+                    ]);
+                    continue;
+                } else {
+                    // ส่งรหัส ADMIN แต่ไม่ถูกต้องหรือถูกใช้งานไปแล้ว
+                    await replyMessage(replyToken, [
+                        {
+                            type: "text",
+                            text: `⚠️ ไม่พบรหัส Admin นี้ในระบบ หรือรหัสนี้ถูกใช้งานไปแล้ว\n(รหัสเชื่อมต่อเป็นแบบใช้ครั้งเดียวเพื่อความปลอดภัยสูงสุด)`,
                         },
                     ]);
                     continue;
@@ -166,6 +188,19 @@ export default async function handler(req, res) {
                     updatedAt: new Date(),
                 });
 
+                // บันทึก Activity Log ของร้านค้า
+                await adminDb.collection("adminLogs").add({
+                    action: "line_shop_closed",
+                    targetType: "shop",
+                    targetId: shopDoc.id,
+                    targetName: shop.name,
+                    detail: `ผู้ขายสั่ง "ปิดรับออเดอร์" ร้าน "${shop.name}" ผ่าน LINE Official Account`,
+                    status: "warning",
+                    actorEmail: `LINE: ${shop.name}`,
+                    actorUid: userId,
+                    createdAt: new Date(),
+                }).catch(() => {});
+
                 await replyMessage(replyToken, [
                     {
                         type: "text",
@@ -216,6 +251,19 @@ export default async function handler(req, res) {
                     isOpen: true,
                     updatedAt: new Date(),
                 });
+
+                // บันทึก Activity Log ของร้านค้า
+                await adminDb.collection("adminLogs").add({
+                    action: "line_shop_opened",
+                    targetType: "shop",
+                    targetId: shopDoc.id,
+                    targetName: shop.name,
+                    detail: `ผู้ขายสั่ง "เปิดรับออเดอร์" ร้าน "${shop.name}" ผ่าน LINE Official Account`,
+                    status: "success",
+                    actorEmail: `LINE: ${shop.name}`,
+                    actorUid: userId,
+                    createdAt: new Date(),
+                }).catch(() => {});
 
                 await replyMessage(replyToken, [
                     {
@@ -273,9 +321,10 @@ export default async function handler(req, res) {
             }
 
             // =========================================================================
-            // 5. ตรวจสอบรหัสผูกร้านค้า (Seller Store Pairing Code — เลข 6 หลัก)
+            // 5. ตรวจสอบรหัสเชื่อมต่อ (One-Time Pairing Code — เลข 6 หลัก)
             // =========================================================================
             if (/^\d{6}$/.test(incomingText)) {
+                // 5.1 ตรวจสอบร้านค้า (Shops)
                 const shopsSnap = await adminDb
                     .collection("shops")
                     .where("lineLinkCode", "==", incomingText)
@@ -294,6 +343,19 @@ export default async function handler(req, res) {
                         lineLinkedAt: new Date(),
                     });
 
+                    // บันทึก Activity Log สำหรับการผูก LINE ร้านค้า
+                    await adminDb.collection("adminLogs").add({
+                        action: "line_shop_linked",
+                        targetType: "shop",
+                        targetId: shopDoc.id,
+                        targetName: shop.name,
+                        detail: `ร้านค้า "${shop.name}" เชื่อมต่อ LINE Official Account สำเร็จ (รหัสใช้ครั้งเดียวถูกทำลายแล้ว)`,
+                        status: "success",
+                        actorEmail: `ร้าน: ${shop.name}`,
+                        actorUid: userId,
+                        createdAt: new Date(),
+                    }).catch(() => {});
+
                     await replyMessage(replyToken, [
                         {
                             type: "text",
@@ -306,12 +368,67 @@ export default async function handler(req, res) {
                     ]);
                     continue;
                 }
+
+                // 5.2 ตรวจสอบผู้ใช้ทั่วไป (Users / Buyers)
+                const usersSnap = await adminDb
+                    .collection("users")
+                    .where("lineLinkCode", "==", incomingText)
+                    .limit(1)
+                    .get();
+
+                if (!usersSnap.empty) {
+                    const userDoc = usersSnap.docs[0];
+                    const userData = userDoc.data();
+                    const userName = userData.displayName || userData.email || "สมาชิก Rittiya Shop";
+
+                    await userDoc.ref.update({
+                        lineUserId: userId,
+                        lineLinkCode: null,
+                        lineLinkedAt: new Date(),
+                    });
+
+                    // บันทึก Activity Log สำหรับผู้ใช้
+                    await adminDb.collection("adminLogs").add({
+                        action: "line_user_linked",
+                        targetType: "user",
+                        targetId: userDoc.id,
+                        targetName: userName,
+                        detail: `ผู้ใช้ทั่วไป "${userName}" เชื่อมต่อ LINE Official Account สำเร็จ (รหัสใช้ครั้งเดียวถูกทำลายแล้ว)`,
+                        status: "success",
+                        actorEmail: userData.email || "User",
+                        actorUid: userDoc.id,
+                        createdAt: new Date(),
+                    }).catch(() => {});
+
+                    await replyMessage(replyToken, [
+                        {
+                            type: "text",
+                            text:
+                                `🎉 เชื่อมต่อบัญชีผู้ใช้ "${userName}" สำเร็จแล้ว!\n` +
+                                `━━━━━━━━━━━━━━━\n` +
+                                `คุณจะได้รับการแจ้งเตือนสถานะคำสั่งซื้อจากร้านค้าในโรงเรียนผ่านทางแชทนี้ครับ`,
+                        },
+                    ]);
+                    continue;
+                }
+
+                // หากส่งตัวเลข 6 หลักแต่ไม่พบทั้งร้านค้าและผู้ใช้ (หรือรหัสถูกใช้ไปแล้ว)
+                await replyMessage(replyToken, [
+                    {
+                        type: "text",
+                        text:
+                            `⚠️ ไม่พบรหัสเชื่อมต่อ 6 หลักนี้ หรือรหัสถูกใช้งานไปแล้ว\n` +
+                            `━━━━━━━━━━━━━━━\n` +
+                            `เพื่อความปลอดภัย รหัสเชื่อมต่อเป็นแบบ "ใช้ครั้งเดียวแล้วทิ้ง" (One-Time Code)\n` +
+                            `หากยังไม่ได้เชื่อมต่อ กรุณากดขอรหัสชุดใหม่จากหน้าเว็บครับ`,
+                    },
+                ]);
+                continue;
             }
 
             // =========================================================================
-            // 6. กรณีข้อความอื่นๆ (Helpful Fallback พร้อม Quick Reply)
+            // 6. กรณีข้อความอื่นๆ ที่ไม่ตรงกับคอมมานปกติ (Guidance Fallback)
             // =========================================================================
-            // เช็คว่าผู้ใช้นี้ผูกร้านค้าไว้หรือยัง
             const connectedShopSnap = await adminDb
                 .collection("shops")
                 .where("lineUserId", "==", userId)
@@ -326,9 +443,14 @@ export default async function handler(req, res) {
                     {
                         type: "text",
                         text:
-                            `👋 สวัสดีครับคุณแม่ค้า/พ่อค้า ร้าน "${shop.name}"\n` +
-                            `สถานะปัจจุบัน: ${isOpen ? "🟢 เปิดรับออเดอร์อยู่" : "🔴 ปิดรับออเดอร์ชั่วคราว"}\n\n` +
-                            `คุณสามารถแตะปุ่มเมนูด้านล่างนี้เพื่อสั่งเปิด/ปิดรับออเดอร์ หรือเช็คสถานะร้านได้ทันทีครับ`,
+                            `❓ ไม่พบคำสั่งที่คุณพิมพ์\n` +
+                            `━━━━━━━━━━━━━━━\n` +
+                            `ร้านค้า: "${shop.name}" (${isOpen ? "🟢 เปิดรับออเดอร์" : "🔴 ปิดรับออเดอร์"})\n\n` +
+                            `คำสั่งที่สามารถใช้งานได้:\n` +
+                            `• พิมพ์ "เปิดรับออเดอร์" หรือ "เปิดร้าน"\n` +
+                            `• พิมพ์ "ปิดรับออเดอร์" หรือ "ปิดร้าน"\n` +
+                            `• พิมพ์ "สถานะร้าน"\n\n` +
+                            `หรือแตะปุ่มเมนูลัดด้านล่างนี้ได้เลยครับ`,
                         quickReply: createShopQuickReply(isOpen),
                     },
                 ]);
@@ -337,9 +459,11 @@ export default async function handler(req, res) {
                     {
                         type: "text",
                         text:
-                            `👋 ยินดีต้อนรับสู่ Rittiya Shop Official\n` +
+                            `❓ ไม่พบคำสั่งที่คุณพิมพ์ในระบบ\n` +
                             `━━━━━━━━━━━━━━━\n` +
-                            `หากคุณเป็นผู้ขาย กรุณานำรหัสเชื่อมต่อ 6 หลักจากหน้าร้านค้ามาพิมพ์ในแชทนี้เพื่อเชื่อมต่อระบบแจ้งเตือนและเมนูควบคุมร้านค้าครับ`,
+                            `คำสั่งที่ระบบรองรับ:\n` +
+                            `• ส่งรหัสเชื่อมต่อ 6 หลักจากหน้าร้านค้า หรือหน้าโปรไฟล์เพื่อผูกบัญชี\n` +
+                            `• เลือกชมร้านค้าและสั่งซื้อได้ที่ https://rittiya-shop-v2.vercel.app`,
                     },
                 ]);
             }

@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { logoutUser } from "../../firebase/auth";
-import { getShopsByOwner, getOrdersByShop, setShopOpenStatus, updateShopInfo } from "../../firebase/firestore";
+import { getShopsByOwner, getOrdersByShop, setShopOpenStatus, updateShopInfo, logAdminAction } from "../../firebase/firestore";
 import PageSkeleton from "../../components/ui/PageSkeleton";
 import Icon from "../../components/ui/Icon";
 
@@ -46,8 +46,21 @@ export default function SellerDashboardPage() {
             const newValue = !(shop.isOpen !== false);
             await setShopOpenStatus(shop.id, newValue);
             setShop({ ...shop, isOpen: newValue });
+
+            // บันทึก Activity Log สำหรับการเปิด/ปิดร้านบนหน้าเว็บ
+            logAdminAction({
+                action: newValue ? "shop_opened" : "shop_closed",
+                targetType: "shop",
+                targetId: shop.id,
+                targetName: shop.name,
+                detail: `ร้านค้า "${shop.name}" เปลี่ยนสถานะบนเว็บเป็น: ${newValue ? "เปิดรับออเดอร์" : "ปิดรับออเดอร์ชั่วคราว"}`,
+                status: newValue ? "success" : "warning",
+                actorEmail: user?.email || "Seller",
+                actorUid: user?.uid || shop.ownerUid,
+            }).catch(() => {});
+
             showToast(newValue ? "เปิดร้านแล้ว" : "ปิดร้านชั่วคราวแล้ว", "success");
-        } catch (err) {
+        } catch {
             showToast("เปลี่ยนสถานะร้านไม่สำเร็จ", "error");
         } finally {
             setTogglingOpen(false);
