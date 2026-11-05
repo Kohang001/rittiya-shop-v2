@@ -30,8 +30,29 @@ export default function Navbar() {
                 zIndex: 30,
             }}
         >
-            <Link to="/" style={{ fontWeight: 700, fontSize: 18, color: "var(--color-text)", textDecoration: "none" }}>
-                Rittiya Shop
+            <Link
+                to="/"
+                style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 10,
+                    fontWeight: 700,
+                    fontSize: 18,
+                    color: "var(--color-text)",
+                    textDecoration: "none",
+                }}
+            >
+                <img
+                    src="/logo.png"
+                    alt="Rittiya Shop Logo"
+                    style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: "var(--radius-sm)",
+                        objectFit: "contain",
+                    }}
+                />
+                <span>Rittiya Shop</span>
             </Link>
 
             {/* Header หลัก — เรียบเสมอทุกขนาดจอ */}
