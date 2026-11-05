@@ -107,7 +107,10 @@ export async function updateShopInfo(shopId, updates) {
 
 /** เปิด/ปิดร้านชั่วคราว (เช่นช่วงสอบ) — ไม่กระทบ status การอนุมัติ */
 export async function setShopOpenStatus(shopId, isOpen) {
-    await updateDoc(doc(db, "shops", shopId), { isOpen });
+    await updateDoc(doc(db, "shops", shopId), {
+        isOpen,
+        updatedAt: serverTimestamp(),
+    });
 }
 
 function generateLineLinkCode() {
@@ -530,11 +533,20 @@ export async function getApprovedFeedPosts() {
 }
 
 export async function createFeedPost(postData) {
-    const docRef = await addDoc(collection(db, "feedPosts"), {
-        ...postData,
+    const cleanData = {
+        title: (postData.title || "").trim().slice(0, 200),
+        content: (postData.content || "").trim().slice(0, 5000),
         status: "approved",
         createdAt: serverTimestamp(),
-    });
+    };
+    if (postData.shopId) cleanData.shopId = postData.shopId;
+    if (postData.shopName) cleanData.shopName = String(postData.shopName).trim().slice(0, 100);
+    if (postData.shopLogoUrl) cleanData.shopLogoUrl = String(postData.shopLogoUrl).trim().slice(0, 1000);
+    if (postData.imageUrl) cleanData.imageUrl = String(postData.imageUrl).trim().slice(0, 1000);
+    if (postData.authorRole) cleanData.authorRole = postData.authorRole;
+    if (postData.authorEmail) cleanData.authorEmail = postData.authorEmail;
+
+    const docRef = await addDoc(collection(db, "feedPosts"), cleanData);
     return docRef.id;
 }
 

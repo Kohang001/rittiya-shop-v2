@@ -1,9 +1,9 @@
 // api/notifyNewProduct.js
 import { adminDb } from "./_firebaseAdmin.js";
-import { pushMessage } from "./_line.js";
+import { notifyAllAdmins } from "./_line.js";
 
 /**
- * แจ้งเตือนไปยัง LINE ของ Admin เมื่อร้านค้าเพิ่มสินค้าใหม่
+ * แจ้งเตือนไปยัง LINE ของ Admin ทุกคนที่เชื่อมต่อไว้ เมื่อร้านค้าเพิ่มสินค้าใหม่
  */
 export default async function handler(req, res) {
     if (req.method !== "POST") {
@@ -20,31 +20,26 @@ export default async function handler(req, res) {
         if (!shopSnap.exists) return res.status(404).json({ error: "shop not found" });
         const shop = shopSnap.data();
 
-        const adminConfigSnap = await adminDb.collection("config").doc("admin").get();
-        const adminLineUserId = adminConfigSnap.exists ? adminConfigSnap.data().lineUserId : null;
+        const formattedPrice = Number(price || 0).toLocaleString();
+        const messageText =
+            `🛍️ มีสินค้าใหม่เพิ่มในร้านค้า!\n` +
+            `━━━━━━━━━━━━━━━\n` +
+            `🏪 ร้าน: ${shop.name} (${shop.category || "ทั่วไป"})\n` +
+            `📦 สินค้า: ${productName}\n` +
+            `💰 ราคา: ${formattedPrice} บาท\n` +
+            (productDesc ? `📝 รายละเอียด: ${productDesc}\n` : "") +
+            `━━━━━━━━━━━━━━━\n` +
+            `🔗 ดูหน้าร้านค้า:\n` +
+            `https://rittiya-shop-v2.vercel.app/shops/${shopId}`;
 
-        if (adminLineUserId) {
-            const formattedPrice = Number(price || 0).toLocaleString();
-            const messageText =
-                `🛍️ มีสินค้าใหม่เพิ่มในร้านค้า!\n` +
-                `━━━━━━━━━━━━━━━\n` +
-                `🏪 ร้าน: ${shop.name} (${shop.category || "ทั่วไป"})\n` +
-                `📦 สินค้า: ${productName}\n` +
-                `💰 ราคา: ${formattedPrice} บาท\n` +
-                (productDesc ? `📝 รายละเอียด: ${productDesc}\n` : "") +
-                `━━━━━━━━━━━━━━━\n` +
-                `🔗 ดูหน้าร้านค้า:\n` +
-                `https://rittiya-shop-v2.vercel.app/shops/${shopId}`;
+        await notifyAllAdmins(adminDb, [
+            {
+                type: "text",
+                text: messageText,
+            },
+        ]);
 
-            await pushMessage(adminLineUserId, [
-                {
-                    type: "text",
-                    text: messageText,
-                },
-            ]);
-        }
-
-        return res.status(200).json({ success: true, notified: Boolean(adminLineUserId) });
+        return res.status(200).json({ success: true });
     } catch (err) {
         console.error("notifyNewProduct error:", err);
         return res.status(500).json({ error: "internal error" });

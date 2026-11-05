@@ -41,6 +41,46 @@ export async function pushMessage(userId, messages) {
     }
 }
 
+/** ดึง lineUserId ของ Admin ทุกคนที่เชื่อมต่อไว้ในระบบ (ทั้ง admins/{uid} และ config/admin) */
+export async function getAdminLineUserIds(adminDb) {
+    const ids = new Set();
+    try {
+        // 1. ดึงจากคอลเลกชัน admins ที่ผูก lineUserId ไว้
+        const adminsSnap = await adminDb.collection("admins").where("lineUserId", "!=", null).get();
+        adminsSnap.forEach((doc) => {
+            const data = doc.data();
+            if (data.lineUserId && typeof data.lineUserId === "string" && data.lineUserId.trim()) {
+                ids.add(data.lineUserId.trim());
+            }
+        });
+
+        // 2. ดึงจาก config/admin (กรณี Master Admin เดิม)
+        const configSnap = await adminDb.collection("config").doc("admin").get();
+        if (configSnap.exists) {
+            const configData = configSnap.data();
+            if (configData.lineUserId && typeof configData.lineUserId === "string" && configData.lineUserId.trim()) {
+                ids.add(configData.lineUserId.trim());
+            }
+        }
+    } catch (err) {
+        console.warn("getAdminLineUserIds error:", err);
+    }
+    return Array.from(ids);
+}
+
+/** ส่งข้อความแจ้งเตือนหา Admin ทุกคนที่เชื่อมต่อไว้ในระบบแบบ Real-time */
+export async function notifyAllAdmins(adminDb, messages) {
+    const adminIds = await getAdminLineUserIds(adminDb);
+    if (!adminIds.length) {
+        console.warn("No admin LINE accounts linked yet to receive notification.");
+        return;
+    }
+
+    await Promise.allSettled(
+        adminIds.map((userId) => pushMessage(userId, messages))
+    );
+}
+
 /** อ่าน raw body ของ request (จำเป็นสำหรับตรวจ signature ให้ตรงเป๊ะ) */
 export function readRawBody(req) {
     return new Promise((resolve, reject) => {

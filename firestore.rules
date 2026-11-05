@@ -42,7 +42,7 @@ service cloud.firestore {
     function isValidShopData(data) {
       return data.keys().hasOnly([
               "ownerUid", "name", "slogan", "logoUrl", "phone", "ig", "category",
-              "status", "isOpen", "lineUserId", "lineLinkCode", "createdAt",
+              "status", "isOpen", "lineUserId", "lineLinkCode", "lineLinkedAt", "createdAt", "updatedAt",
               "promptpayId", "bankName", "bankAccountNumber", "bankAccountName",
               "reviewedBy", "reviewedAt", "rejectReason"
             ])
@@ -84,7 +84,11 @@ service cloud.firestore {
       allow update: if isAdmin()
                     || (isOwner(resource.data.ownerUid)
                         && request.resource.data.ownerUid == resource.data.ownerUid
-                        && isValidShopData(request.resource.data));
+                        && (
+                            // อนุญาตให้เจ้าของร้านเปลี่ยนสถานะเปิด/ปิดร้านได้ทันที
+                            request.resource.data.diff(resource.data).affectedKeys().hasOnly(["isOpen", "updatedAt"])
+                            || isValidShopData(request.resource.data)
+                        ));
 
       allow delete: if isAdmin() || isOwner(resource.data.ownerUid);
 
@@ -117,24 +121,30 @@ service cloud.firestore {
     // ---------- feedPosts/{postId} ----------
     match /feedPosts/{postId} {
       allow read: if resource.data.status == "approved"
-                  || isOwner(get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.ownerUid)
-                  || isAdmin();
+                  || isAdmin()
+                  || (("shopId" in resource.data) && isOwner(get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.ownerUid));
 
-      allow create: if isOwner(get(/databases/$(database)/documents/shops/$(request.resource.data.shopId)).data.ownerUid)
-                    && get(/databases/$(database)/documents/shops/$(request.resource.data.shopId)).data.status in ["approved", "pending"]
-                    && request.resource.data.status == "approved"
-                    && request.resource.data.keys().hasOnly(["shopId", "title", "content", "imageUrl", "status", "createdAt", "shopName", "shopLogoUrl", "reviewedBy", "reviewedAt", "rejectReason"])
-                    && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 100
-                    && request.resource.data.content is string && request.resource.data.content.size() > 0 && request.resource.data.content.size() <= 5000
-                    && (!("imageUrl" in request.resource.data) || (request.resource.data.imageUrl is string && request.resource.data.imageUrl.size() <= 500))
-                    && (!("shopName" in request.resource.data) || (request.resource.data.shopName is string && request.resource.data.shopName.size() <= 100))
-                    && (!("shopLogoUrl" in request.resource.data) || (request.resource.data.shopLogoUrl is string && request.resource.data.shopLogoUrl.size() <= 500));
+      // Admin สามารถสร้างประกาศข่าวสารของระบบได้เสมอ หรือเจ้าของร้านค้าสร้างประกาศของร้านตนเอง
+      allow create: if isAdmin()
+                    || (
+                        isSignedIn()
+                        && ("shopId" in request.resource.data)
+                        && isOwner(get(/databases/$(database)/documents/shops/$(request.resource.data.shopId)).data.ownerUid)
+                        && get(/databases/$(database)/documents/shops/$(request.resource.data.shopId)).data.status in ["approved", "pending"]
+                        && request.resource.data.status == "approved"
+                        && request.resource.data.keys().hasOnly(["shopId", "title", "content", "imageUrl", "status", "createdAt", "shopName", "shopLogoUrl", "reviewedBy", "reviewedAt", "rejectReason", "authorRole", "authorEmail"])
+                        && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 200
+                        && request.resource.data.content is string && request.resource.data.content.size() > 0 && request.resource.data.content.size() <= 5000
+                        && (!("imageUrl" in request.resource.data) || (request.resource.data.imageUrl is string && request.resource.data.imageUrl.size() <= 1000))
+                        && (!("shopName" in request.resource.data) || (request.resource.data.shopName is string && request.resource.data.shopName.size() <= 100))
+                        && (!("shopLogoUrl" in request.resource.data) || (request.resource.data.shopLogoUrl is string && request.resource.data.shopLogoUrl.size() <= 1000))
+                    );
 
       allow update: if isAdmin()
-                    || isOwner(get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.ownerUid);
+                    || (("shopId" in resource.data) && isOwner(get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.ownerUid));
 
-      allow delete: if isOwner(get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.ownerUid)
-                    || isAdmin();
+      allow delete: if isAdmin()
+                    || (("shopId" in resource.data) && isOwner(get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.ownerUid));
     }
 
     // ---------- adminLogs (Audit Trail & Activity Logs) ----------
