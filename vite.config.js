@@ -146,4 +146,33 @@ function localApiDevPlugin() {
 
 export default defineConfig({
     plugins: [react(), localApiDevPlugin()],
+    build: {
+        chunkSizeWarningLimit: 1200,
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (id.includes("node_modules")) {
+                        if (id.includes("firebase/firestore")) {
+                            return "vendor-firestore";
+                        }
+                        if (id.includes("firebase/auth")) {
+                            return "vendor-auth";
+                        }
+                        if (id.includes("firebase")) {
+                            return "vendor-firebase-core";
+                        }
+                        if (id.includes("react-router-dom") || id.includes("react-router")) {
+                            return "vendor-router";
+                        }
+                        if (id.includes("react-hook-form")) {
+                            return "vendor-form";
+                        }
+                        if (id.includes("react") || id.includes("react-dom")) {
+                            return "vendor-react";
+                        }
+                    }
+                },
+            },
+        },
+    },
 });
