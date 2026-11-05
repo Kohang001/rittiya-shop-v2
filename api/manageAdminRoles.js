@@ -185,7 +185,52 @@ export default async function handler(req, res) {
             }
         }
 
-        // ---------- กรณี 3: ปรับระดับสิทธิ์ปกติ (super, normal, user) ----------
+        // ---------- กรณี 3: จัดการ LINE Rich Menu สไตล์เต่าบิน ----------
+        if (action === "create_rich_menu") {
+            const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+            if (!token) return res.status(500).json({ error: "ไม่พบ LINE_CHANNEL_ACCESS_TOKEN ใน Environment" });
+
+            try {
+                const richMenuStructure = {
+                    size: { width: 2500, height: 1686 },
+                    selected: true,
+                    name: "Rittiya Shop Seller Controller",
+                    chatBarText: "เมนูร้านค้า ⚡",
+                    areas: [
+                        {
+                            bounds: { x: 0, y: 0, width: 2500, height: 843 },
+                            action: { type: "message", text: "สถานะร้าน" },
+                        },
+                        {
+                            bounds: { x: 0, y: 843, width: 1250, height: 843 },
+                            action: { type: "message", text: "เปิดรับออเดอร์" },
+                        },
+                        {
+                            bounds: { x: 1250, y: 843, width: 1250, height: 843 },
+                            action: { type: "message", text: "ปิดรับออเดอร์" },
+                        },
+                    ],
+                };
+
+                const createRes = await fetch("https://api.line.me/v2/bot/richmenu", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify(richMenuStructure),
+                });
+                const createData = await createRes.json();
+                if (!createRes.ok) throw new Error(createData.message || "สร้าง Rich Menu ไม่สำเร็จ");
+
+                return res.status(200).json({ success: true, richMenuId: createData.richMenuId });
+            } catch (err) {
+                console.error("create_rich_menu error:", err);
+                return res.status(500).json({ error: err.message });
+            }
+        }
+
+        // ---------- กรณี 4: ปรับระดับสิทธิ์ปกติ (super, normal, user) ----------
         if (!targetUid || !["super", "normal", "user"].includes(newRole)) {
             return res.status(400).json({ error: "ข้อมูลบทบาทไม่ถูกต้อง" });
         }
