@@ -75,21 +75,24 @@ service cloud.firestore {
                   || isOwner(resource.data.ownerUid)
                   || isAdmin();
 
-      // เจ้าของร้านสร้างร้านได้ทันที (ระบบตรวจสอบคำไม่เหมาะสมอนุมัติให้อัตโนมัติ)
+      // เจ้าของร้านสร้างร้านได้ทันที (ระบบตรวจสอบคำไม่เหมาะสมอนุมัติให้อัตโนมัติ ห้ามฉีด lineUserId เอง)
       allow create: if isSignedIn()
                     && request.resource.data.ownerUid == request.auth.uid
                     && request.resource.data.status in ["pending", "approved"]
+                    && (!("lineUserId" in request.resource.data) || request.resource.data.lineUserId == null)
                     && isValidShopData(request.resource.data);
 
       allow update: if isAdmin()
                     || (isOwner(resource.data.ownerUid)
                         && request.resource.data.ownerUid == resource.data.ownerUid
                         && (
-                            // อนุญาตให้เจ้าของร้านเปลี่ยนสถานะเปิด/ปิดร้าน หรือจัดการรหัสเชื่อมต่อ LINE ได้ทันที
+                            // อนุญาตให้เจ้าของร้านเปลี่ยนสถานะเปิด/ปิดร้าน หรือจัดการรหัสเชื่อมต่อ LINE ได้ทันที (lineUserId เปลี่ยนได้เฉพาะเคลียร์เป็น null)
                             request.resource.data.diff(resource.data).affectedKeys().hasOnly(["isOpen", "updatedAt"])
                             || request.resource.data.diff(resource.data).affectedKeys().hasOnly(["lineLinkCode", "updatedAt"])
-                            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(["lineUserId", "lineLinkCode", "updatedAt"])
-                            || isValidShopData(request.resource.data)
+                            || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(["lineUserId", "lineLinkCode", "updatedAt"])
+                                && request.resource.data.lineUserId == null)
+                            || (isValidShopData(request.resource.data)
+                                && (!("lineUserId" in request.resource.data) || request.resource.data.lineUserId == null || request.resource.data.lineUserId == resource.data.lineUserId))
                         ));
 
       allow delete: if isAdmin() || isOwner(resource.data.ownerUid);
@@ -154,7 +157,11 @@ service cloud.firestore {
     // ห้ามแก้ไขหรือลบโดยเด็ดขาด (Immutable Audit Log) เพื่อการตรวจสอบย้อนหลังที่โปร่งใส
     match /adminLogs/{logId} {
       allow read: if isAdmin();
-      allow create: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.resource.data.keys().hasOnly(["action", "targetType", "targetId", "targetName", "detail", "status", "actorEmail", "actorUid", "createdAt"])
+                    && request.resource.data.action is string && request.resource.data.action.size() <= 100
+                    && request.resource.data.detail is string && request.resource.data.detail.size() <= 1000
+                    && (!("targetName" in request.resource.data) || (request.resource.data.targetName is string && request.resource.data.targetName.size() <= 200));
       allow update, delete: if false;
     }
 

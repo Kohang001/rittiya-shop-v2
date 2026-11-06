@@ -1,5 +1,5 @@
 // api/updateOrderStatus.js — Security Round 2: บังคับ state machine ห้ามข้ามขั้น
-import { adminDb, adminAuth } from "./_firebaseAdmin.js";
+import { adminDb, adminAuth, verifyAdminRequest } from "./_firebaseAdmin.js";
 
 // กำหนดว่าจากสถานะไหน ไปสถานะไหนได้บ้าง — ห้ามข้ามขั้นหรือย้อนกลับจากสถานะจบแล้ว
 const ALLOWED_TRANSITIONS = {
@@ -26,13 +26,14 @@ export default async function handler(req, res) {
 
     try {
         const decoded = await adminAuth.verifyIdToken(idToken);
+        const adminCaller = await verifyAdminRequest(req);
+        const isAdmin = Boolean(adminCaller);
 
         const shopRef = adminDb.collection("shops").doc(shopId);
         const shopSnap = await shopRef.get();
         if (!shopSnap.exists) return res.status(404).json({ error: "ไม่พบร้านค้า" });
 
         const isOwner = shopSnap.data().ownerUid === decoded.uid;
-        const isAdmin = decoded.admin === true;
         if (!isOwner && !isAdmin) {
             return res.status(403).json({ error: "ไม่มีสิทธิ์แก้ไขออเดอร์นี้" });
         }

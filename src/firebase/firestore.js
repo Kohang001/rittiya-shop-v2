@@ -73,29 +73,10 @@ export async function createShopDraft(shopData) {
         createdAt: serverTimestamp(),
     };
 
-    let docRef;
-    try {
-        // ลองสร้างเป็น approved ทันที
-        docRef = await addDoc(collection(db, "shops"), {
-            ...dataToSave,
-            status: "approved",
-        });
-    } catch (err) {
-        // หาก rules ใน Firebase Console ยังคงระบุให้ create ด้วย status == 'pending'
-        if (err.code === "permission-denied" || err.message?.includes("Missing or insufficient permissions")) {
-            docRef = await addDoc(collection(db, "shops"), {
-                ...dataToSave,
-                status: "pending",
-            });
-            fetch("/api/autoApproveShop", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ shopId: docRef.id }),
-            }).catch(() => {});
-        } else {
-            throw err;
-        }
-    }
+    const docRef = await addDoc(collection(db, "shops"), {
+        ...dataToSave,
+        status: "approved",
+    });
 
     return { id: docRef.id, lineLinkCode };
 }
@@ -191,27 +172,10 @@ export async function addProduct(shopId, productData) {
         createdAt: serverTimestamp(),
     };
 
-    let docRef;
-    try {
-        docRef = await addDoc(collection(db, "shops", shopId, "products"), {
-            ...dataToSave,
-            status: "approved",
-        });
-    } catch (err) {
-        if (err.code === "permission-denied" || err.message?.includes("Missing or insufficient permissions")) {
-            docRef = await addDoc(collection(db, "shops", shopId, "products"), {
-                ...dataToSave,
-                status: "pending",
-            });
-            fetch("/api/autoApproveProduct", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ shopId, productId: docRef.id }),
-            }).catch(() => {});
-        } else {
-            throw err;
-        }
-    }
+    const docRef = await addDoc(collection(db, "shops", shopId, "products"), {
+        ...dataToSave,
+        status: "approved",
+    });
 
     return docRef.id;
 }
@@ -222,26 +186,10 @@ export async function updateProduct(shopId, productId, updates) {
         ...(updates.price !== undefined ? { price: Number(updates.price) || 0 } : {}),
     };
 
-    try {
-        await updateDoc(doc(db, "shops", shopId, "products", productId), {
-            ...dataToSave,
-            status: "approved",
-        });
-    } catch (err) {
-        if (err.code === "permission-denied" || err.message?.includes("Missing or insufficient permissions")) {
-            await updateDoc(doc(db, "shops", shopId, "products", productId), {
-                ...dataToSave,
-                status: "pending",
-            });
-            fetch("/api/autoApproveProduct", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ shopId, productId }),
-            }).catch(() => {});
-        } else {
-            throw err;
-        }
-    }
+    await updateDoc(doc(db, "shops", shopId, "products", productId), {
+        ...dataToSave,
+        status: "approved",
+    });
 }
 
 export async function deleteProduct(shopId, productId) {
