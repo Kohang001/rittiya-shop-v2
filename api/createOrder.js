@@ -1,3 +1,4 @@
+import crypto from "crypto";
 // api/createOrder.js — Security Round 2: idempotency, item/qty caps, dedupe, แยก LINE push ไม่ให้กระทบ response
 import { adminDb } from "./_firebaseAdmin.js";
 import { pushMessage } from "./_line.js";
@@ -10,6 +11,14 @@ const MAX_QTY_PER_ITEM = 20;
 
 function isRateLimited(ip) {
     const now = Date.now();
+    // ป้องกัน Memory Leak ใน Container ที่มีอายุยาว
+    if (requestLog.size > 1000) {
+        for (const [k, v] of requestLog.entries()) {
+            if (!v.length || now - v[v.length - 1] > RATE_LIMIT_WINDOW_MS) {
+                requestLog.delete(k);
+            }
+        }
+    }
     const timestamps = (requestLog.get(ip) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
     timestamps.push(now);
     requestLog.set(ip, timestamps);
@@ -102,12 +111,16 @@ export default async function handler(req, res) {
         let total = 0;
         const validatedItems = [];
 
-        for (const [productId, qty] of mergedQtyByProductId) {
-            if (qty > MAX_QTY_PER_ITEM) {
-                return res.status(400).json({ error: `สั่งสินค้าแต่ละชิ้นได้ไม่เกิน ${MAX_QTY_PER_ITEM} ชิ้น` });
-            }
-            const productRef = shopRef.collection("products").doc(productId);
-            const productSnap = await productRef.get();
+        // Batch Read: ดึงข้อมูลสินค้าทั้งหมดพร้อมกันใน 1 Round-trip แทน sequential loop ป้องกัน 504 Timeout & DoS
+        const productIds = Array.from(mergedQtyByProductId.keys());
+        const productRefs = productIds.map((id) => shopRef.collection("products").doc(id));
+        const productSnaps = await adminDb.getAll(...productRefs);
+
+        for (let i = 0; i < productSnaps.length; i++) {
+            const productSnap = productSnaps[i];
+            const productId = productIds[i];
+            const qty = mergedQtyByProductId.get(productId);
+
             if (!productSnap.exists) {
                 return res.status(400).json({ error: `ไม่พบสินค้า (${productId})` });
             }
@@ -129,6 +142,8 @@ export default async function handler(req, res) {
             bankAccountName: shop.bankAccountName || null,
         };
 
+        const orderAccessToken = crypto.randomBytes(16).toString("hex");
+
         const orderRef = await shopRef.collection("orders").add({
             customerName: String(customerName).trim().slice(0, 100),
             customerContact: String(customerContact).trim().slice(0, 100),
@@ -139,6 +154,7 @@ export default async function handler(req, res) {
             slipUrl: slipUrl || null,
             slipUploadedAt: slipUrl ? new Date() : null,
             clientOrderId: clientOrderId || null,
+            orderAccessToken,
             paymentInfoSnapshot: paymentInfo,
             createdAt: new Date(),
         });
@@ -185,7 +201,7 @@ export default async function handler(req, res) {
             }
         }
 
-        return res.status(200).json({ orderId: orderRef.id, total, paymentInfo });
+        return res.status(200).json({ orderId: orderRef.id, total, paymentInfo, orderAccessToken });
     } catch (err) {
         console.error("createOrder error:", err);
         return res.status(500).json({ error: "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง" });

@@ -8,6 +8,13 @@ const RATE_LIMIT_MAX_REQUESTS = 5;
 
 function isRateLimited(ip) {
     const now = Date.now();
+    if (requestLog.size > 1000) {
+        for (const [k, v] of requestLog.entries()) {
+            if (!v.length || now - v[v.length - 1] > RATE_LIMIT_WINDOW_MS) {
+                requestLog.delete(k);
+            }
+        }
+    }
     const timestamps = (requestLog.get(ip) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
     timestamps.push(now);
     requestLog.set(ip, timestamps);
@@ -24,9 +31,9 @@ export default async function handler(req, res) {
         return res.status(429).json({ error: "ลองถี่เกินไป กรุณารอสักครู่" });
     }
 
-    const { shopId, orderId, slipUrl } = req.body;
+    const { shopId, orderId, slipUrl, orderAccessToken } = req.body || {};
     if (!shopId || !orderId || !slipUrl) {
-        return res.status(400).json({ error: "ข้อมูลไม่ครบ" });
+        return res.status(400).json({ error: "ข้อมูลไม่ครบถ้วน" });
     }
     // เช็คคร่าวๆ ว่าเป็น URL รูปจาก Cloudinary จริง กัน URL แปลกปลอมถูกส่งต่อไปที่ LINE
     if (!slipUrl.startsWith("https://res.cloudinary.com/")) {
@@ -43,6 +50,11 @@ export default async function handler(req, res) {
 
         const shop = shopSnap.data();
         const order = orderSnap.data();
+
+        // ตรวจสอบ Access Token ประจำออเดอร์ ป้องกัน IDOR หรือการแอบอ้างส่งสลิปสวมรอย
+        if (order.orderAccessToken && order.orderAccessToken !== orderAccessToken) {
+            return res.status(403).json({ error: "ไม่มีสิทธิ์เข้าถึงหรืออัปเดตคำสั่งซื้อนี้" });
+        }
 
         // ป้องกันการอัปสลิปซ้ำหรือแก้ไขออเดอร์ที่ผ่านการดำเนินการไปแล้ว
         if (order.status !== "pending") {
